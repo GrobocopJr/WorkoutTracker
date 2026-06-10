@@ -64,6 +64,11 @@ export default function ActiveWorkout() {
 
   const [units, setUnits] = useState('lbs');
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const toggleCollapse = useCallback((exerciseId: string) => {
+    setCollapsed((prev) => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
+  }, []);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTimerRunning = useRef(false);
 
@@ -276,6 +281,8 @@ export default function ActiveWorkout() {
               units={units}
               styles={styles}
               c={c}
+              collapsed={!!collapsed[item.exercise_id]}
+              onToggleCollapse={toggleCollapse}
               onLog={handleLogSet}
               onAddSet={handleAddSet}
               onRemoveSet={handleRemoveSet}
@@ -309,6 +316,8 @@ interface ExerciseCardProps {
   units: string;
   styles: Styles;
   c: Colors;
+  collapsed: boolean;
+  onToggleCollapse: (exerciseId: string) => void;
   onLog: (
     exerciseId: string,
     setIndex: number,
@@ -326,6 +335,8 @@ function ExerciseCard({
   units,
   styles,
   c,
+  collapsed,
+  onToggleCollapse,
   onLog,
   onAddSet,
   onRemoveSet,
@@ -335,11 +346,44 @@ function ExerciseCard({
   const updateSet = useWorkoutStore((s) => s.updateSet);
   const updateNote = useWorkoutStore((s) => s.setExerciseNote);
   const drag = useReorderableDrag();
+  const lastTap = useRef(0);
+
+  // Double-tap the title/top bar to collapse or expand this exercise.
+  const handleTitlePress = () => {
+    const now = Date.now();
+    if (now - lastTap.current < 345) {
+      onToggleCollapse(ex.exercise_id);
+      lastTap.current = 0;
+    } else {
+      lastTap.current = now;
+    }
+  };
+
+  const loggedCount = ex.sets.filter((s) => s.saved).length;
 
   return (
     <View style={styles.exerciseCard}>
       <View style={styles.exerciseHeader}>
-        <Text style={styles.exerciseTitle}>{ex.exercise_name}</Text>
+        <TouchableOpacity
+          onPress={() => onToggleCollapse(ex.exercise_id)}
+          hitSlop={8}
+          style={styles.chevronBtn}
+        >
+          <Ionicons
+            name={collapsed ? 'chevron-forward' : 'chevron-down'}
+            size={18}
+            color={c.muted}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.titleArea}
+          activeOpacity={0.7}
+          onPress={handleTitlePress}
+        >
+          <Text style={styles.exerciseTitle} numberOfLines={1}>
+            {ex.exercise_name}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity
           onLongPress={drag}
           delayLongPress={150}
@@ -356,6 +400,63 @@ function ExerciseCard({
         </TouchableOpacity>
       </View>
 
+      {collapsed ? (
+        <Text style={styles.collapsedSummary}>
+          {ex.sets.length} set{ex.sets.length !== 1 ? 's' : ''}
+          {loggedCount > 0 ? ` · ${loggedCount} logged` : ''}
+          {ex.note ? ` · ${ex.note}` : ''}
+        </Text>
+      ) : (
+        <ExerciseBody
+          ex={ex}
+          units={units}
+          styles={styles}
+          c={c}
+          db={db}
+          updateSet={updateSet}
+          updateNote={updateNote}
+          onLog={onLog}
+          onAddSet={onAddSet}
+          onRemoveSet={onRemoveSet}
+        />
+      )}
+    </View>
+  );
+}
+
+interface ExerciseBodyProps {
+  ex: ActiveExercise;
+  units: string;
+  styles: Styles;
+  c: Colors;
+  db: ReturnType<typeof useSQLiteContext>;
+  updateSet: (exerciseId: string, setIndex: number, field: 'weight' | 'reps', value: string) => void;
+  updateNote: (exerciseId: string, note: string) => void;
+  onLog: (
+    exerciseId: string,
+    setIndex: number,
+    weight: string,
+    reps: string,
+    setNumber: number
+  ) => void;
+  onAddSet: (ex: ActiveExercise) => void;
+  onRemoveSet: (exerciseId: string) => void;
+}
+
+function ExerciseBody({
+  ex,
+  units,
+  styles,
+  c,
+  db,
+  updateSet,
+  updateNote,
+  onLog,
+  onAddSet,
+  onRemoveSet,
+}: ExerciseBodyProps) {
+  return (
+    <>
       <TextInput
         style={styles.noteInput}
         value={ex.note ?? ''}
@@ -423,7 +524,7 @@ function ExerciseCard({
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </>
   );
 }
 
@@ -462,7 +563,10 @@ function makeStyles(c: Colors) {
       alignItems: 'center',
       marginBottom: 4,
     },
+    chevronBtn: { paddingRight: 4, paddingVertical: 4 },
+    titleArea: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
     exerciseTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text },
+    collapsedSummary: { fontSize: 13, color: c.muted, marginTop: 2, marginLeft: 22 },
     dragHandle: { paddingHorizontal: 8 },
     noteInput: {
       fontSize: 13,
