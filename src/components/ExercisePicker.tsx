@@ -158,15 +158,21 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
         </View>
 
         {/* Search */}
-        <TextInput
-          style={styles.search}
-          placeholder="Search exercises..."
-          placeholderTextColor={c.placeholder}
-          value={search}
-          onChangeText={setSearch}
-          autoFocus
-          clearButtonMode="while-editing"
-        />
+        <View style={styles.searchWrap}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search exercises..."
+            placeholderTextColor={c.placeholder}
+            value={search}
+            onChangeText={setSearch}
+            autoFocus
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={styles.searchClear} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={c.muted} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Equipment filter — single select */}
         <View style={styles.filterRow}>
@@ -311,6 +317,7 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
               data={orderExercisesByFavorites(exercises, favExercises)}
               keyExtractor={(e) => e.id}
               keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.listContent}
               renderItem={({ item }) => {
                 const fav = favExercises.includes(item.id);
                 return (
@@ -370,17 +377,23 @@ function makeStyles(c: Colors) {
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
     newBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
     newBtnText: { color: c.accent, fontWeight: '700', fontSize: 14 },
-    search: {
+    searchWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
       margin: 12,
       marginBottom: 6,
       backgroundColor: c.inputBg,
       borderRadius: 10,
       borderWidth: 1,
       borderColor: c.border,
+    },
+    searchInput: {
+      flex: 1,
       padding: 10,
       fontSize: 15,
       color: c.text,
     },
+    searchClear: { paddingHorizontal: 10 },
     filterLabel: {
       fontSize: 11,
       fontWeight: '700',
@@ -429,13 +442,18 @@ function makeStyles(c: Colors) {
     chipTextActive: { color: '#fff', fontWeight: '600' },
     results: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 },
+    listContent: { padding: 12, paddingBottom: 20 },
     item: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 13,
-      borderBottomWidth: 1,
-      borderBottomColor: c.divider,
+      backgroundColor: c.card,
+      borderRadius: 10,
+      padding: 14,
+      marginBottom: 8,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
     },
     itemMain: { flex: 1 },
     itemNameRow: { flexDirection: 'row', alignItems: 'center' },

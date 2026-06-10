@@ -116,16 +116,22 @@ export default function ExercisesTab() {
   return (
     <View style={styles.container}>
       <View style={styles.searchRow}>
-        <TextInput
-          style={[styles.searchInput, styles.searchInputFlex]}
-          placeholder="Search exercises..."
-          placeholderTextColor={c.placeholder}
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-          onSubmitEditing={loadExercises}
-          clearButtonMode="while-editing"
-        />
+        <View style={styles.searchWrap}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search exercises..."
+            placeholderTextColor={c.placeholder}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+            onSubmitEditing={loadExercises}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={styles.searchClear} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={c.muted} />
+            </TouchableOpacity>
+          )}
+        </View>
         <TouchableOpacity style={styles.newBtn} onPress={() => setEditorVisible(true)}>
           <Ionicons name="add" size={20} color="#fff" />
           <Text style={styles.newBtnText}>New</Text>
@@ -304,17 +310,22 @@ function makeStyles(c: Colors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg, padding: 12 },
     searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    searchInput: {
+    searchWrap: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
       backgroundColor: c.inputBg,
       borderRadius: 10,
       borderWidth: 1,
       borderColor: c.border,
+    },
+    searchInput: {
+      flex: 1,
       padding: 10,
       fontSize: 15,
-      marginBottom: 10,
       color: c.text,
     },
-    searchInputFlex: { flex: 1, marginBottom: 0 },
+    searchClear: { paddingHorizontal: 10 },
     newBtn: {
       flexDirection: 'row',
       alignItems: 'center',
