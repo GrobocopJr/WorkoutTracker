@@ -69,23 +69,29 @@ export default function ExercisesTab() {
       />
 
       <Text style={styles.filterLabel}>Equipment</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-        <TouchableOpacity
-          style={[styles.chip, equipment === '' && styles.chipActive]}
-          onPress={() => setEquipment('')}
+      <View style={styles.chipRowWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipRowContent}
         >
-          <Text style={[styles.chipText, equipment === '' && styles.chipTextActive]}>All</Text>
-        </TouchableOpacity>
-        {equipmentList.map((eq) => (
           <TouchableOpacity
-            key={eq}
-            style={[styles.chip, equipment === eq && styles.chipActive]}
-            onPress={() => setEquipment(equipment === eq ? '' : eq)}
+            style={[styles.chip, equipment === '' && styles.chipActive]}
+            onPress={() => setEquipment('')}
           >
-            <Text style={[styles.chipText, equipment === eq && styles.chipTextActive]}>{eq}</Text>
+            <Text style={[styles.chipText, equipment === '' && styles.chipTextActive]}>All</Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+          {equipmentList.map((eq) => (
+            <TouchableOpacity
+              key={eq}
+              style={[styles.chip, equipment === eq && styles.chipActive]}
+              onPress={() => setEquipment(equipment === eq ? '' : eq)}
+            >
+              <Text style={[styles.chipText, equipment === eq && styles.chipTextActive]}>{eq}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <View style={styles.filterRow}>
         <Text style={styles.filterLabel}>Muscle Group</Text>
@@ -95,49 +101,57 @@ export default function ExercisesTab() {
           </TouchableOpacity>
         )}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-        {muscleList.map((m) => {
-          const active = muscles.includes(m);
-          return (
-            <TouchableOpacity
-              key={m}
-              style={[styles.chip, active && styles.chipActive]}
-              onPress={() => toggleMuscle(m)}
-            >
-              {active && (
-                <Ionicons name="checkmark" size={11} color="#fff" style={styles.chipCheck} />
-              )}
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{m}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.chipRowWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipRowContent}
+        >
+          {muscleList.map((m) => {
+            const active = muscles.includes(m);
+            return (
+              <TouchableOpacity
+                key={m}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => toggleMuscle(m)}
+              >
+                {active && (
+                  <Ionicons name="checkmark" size={11} color="#fff" style={styles.chipCheck} />
+                )}
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{m}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={c.accent} />
-        </View>
-      ) : (
-        <FlatList
-          data={exercises}
-          keyExtractor={(ex) => ex.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push(`/exercises/${item.id}`)}
-            >
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardSub}>
-                {[item.equipment, item.category].filter(Boolean).join(' · ')}
-              </Text>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.empty}>No exercises found.</Text>
-          }
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      )}
+      <View style={styles.results}>
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={c.accent} />
+          </View>
+        ) : (
+          <FlatList
+            data={exercises}
+            keyExtractor={(ex) => ex.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => router.push(`/exercises/${item.id}`)}
+              >
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.cardSub}>
+                  {[item.equipment, item.category].filter(Boolean).join(' · ')}
+                </Text>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.empty}>No exercises found.</Text>
+            }
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -158,7 +172,8 @@ function makeStyles(c: Colors) {
     filterLabel: { fontSize: 11, fontWeight: '700', color: c.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.6 },
     filterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 4 },
     clearBtn: { fontSize: 12, color: c.accent, fontWeight: '600' },
-    chipRow: { flexDirection: 'row', marginBottom: 8 },
+    chipRowWrap: { height: 32, marginBottom: 8 },
+    chipRowContent: { paddingHorizontal: 4, alignItems: 'center' },
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -172,8 +187,9 @@ function makeStyles(c: Colors) {
     },
     chipActive: { backgroundColor: c.accent, borderColor: c.accent },
     chipCheck: { marginRight: 3 },
-    chipText: { color: c.subtext, fontSize: 13, textTransform: 'capitalize' },
+    chipText: { color: c.subtext, fontSize: 13, lineHeight: 18, textTransform: 'capitalize' },
     chipTextActive: { color: '#fff', fontWeight: '600' },
+    results: { flex: 1 },
     card: {
       backgroundColor: c.card,
       borderRadius: 10,

@@ -58,6 +58,12 @@ CREATE TABLE IF NOT EXISTS sets (
 CREATE INDEX IF NOT EXISTS idx_sets_session  ON sets(session_id);
 CREATE INDEX IF NOT EXISTS idx_sets_exercise ON sets(exercise_id);
 
+CREATE TABLE IF NOT EXISTS exercise_notes (
+  exercise_id TEXT PRIMARY KEY REFERENCES exercises(id) ON DELETE CASCADE,
+  note        TEXT NOT NULL,
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL

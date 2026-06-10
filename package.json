@@ -25,10 +25,10 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "expo start --port 8083",
+    "android": "expo start --android --port 8083",
+    "ios": "expo start --ios --port 8083",
+    "web": "expo start --web --port 8083"
   },
   "private": true
 }

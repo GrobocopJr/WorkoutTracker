@@ -19,6 +19,7 @@ interface WorkoutState {
   ) => void;
   markSetSaved: (exerciseId: string, setIndex: number) => void;
   addSetToExercise: (exerciseId: string, exerciseName: string) => void;
+  setExerciseNote: (exerciseId: string, note: string) => void;
   startTimer: (seconds: number) => void;
   tickTimer: () => void;
   stopTimer: () => void;
@@ -89,6 +90,13 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           ],
         };
       }),
+    })),
+
+  setExerciseNote: (exerciseId, note) =>
+    set((state) => ({
+      exercises: state.exercises.map((ex) =>
+        ex.exercise_id !== exerciseId ? ex : { ...ex, note }
+      ),
     })),
 
   startTimer: (seconds) => set({ timerSeconds: seconds, timerRunning: true }),

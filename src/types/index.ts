@@ -67,6 +67,7 @@ export interface ActiveSet {
 export interface ActiveExercise {
   exercise_id: string;
   exercise_name: string;
+  note?: string;
   sets: ActiveSet[];
 }
 

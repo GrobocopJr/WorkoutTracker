@@ -97,30 +97,31 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
 
         {/* Equipment filter — single select */}
         <Text style={styles.filterLabel}>Equipment</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipRow}
-          contentContainerStyle={styles.chipRowContent}
-        >
-          <TouchableOpacity
-            style={[styles.chip, equipment === '' && styles.chipActive]}
-            onPress={() => setEquipment('')}
+        <View style={styles.chipRowWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRowContent}
           >
-            <Text style={[styles.chipText, equipment === '' && styles.chipTextActive]}>All</Text>
-          </TouchableOpacity>
-          {equipmentList.map((eq) => (
             <TouchableOpacity
-              key={eq}
-              style={[styles.chip, equipment === eq && styles.chipActive]}
-              onPress={() => setEquipment((prev) => prev === eq ? '' : eq)}
+              style={[styles.chip, equipment === '' && styles.chipActive]}
+              onPress={() => setEquipment('')}
             >
-              <Text style={[styles.chipText, equipment === eq && styles.chipTextActive]}>
-                {eq}
-              </Text>
+              <Text style={[styles.chipText, equipment === '' && styles.chipTextActive]}>All</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+            {equipmentList.map((eq) => (
+              <TouchableOpacity
+                key={eq}
+                style={[styles.chip, equipment === eq && styles.chipActive]}
+                onPress={() => setEquipment((prev) => prev === eq ? '' : eq)}
+              >
+                <Text style={[styles.chipText, equipment === eq && styles.chipTextActive]}>
+                  {eq}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Muscle filter — multi-select */}
         <View style={styles.filterRow}>
@@ -131,60 +132,63 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
             </TouchableOpacity>
           )}
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipRow}
-          contentContainerStyle={styles.chipRowContent}
-        >
-          {muscleList.map((m) => {
-            const active = muscles.includes(m);
-            return (
-              <TouchableOpacity
-                key={m}
-                style={[styles.chip, active && styles.chipActive]}
-                onPress={() => toggleMuscle(m)}
-              >
-                {active && (
-                  <Ionicons
-                    name="checkmark"
-                    size={11}
-                    color="#fff"
-                    style={styles.chipCheck}
-                  />
-                )}
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{m}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <View style={styles.chipRowWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRowContent}
+          >
+            {muscleList.map((m) => {
+              const active = muscles.includes(m);
+              return (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => toggleMuscle(m)}
+                >
+                  {active && (
+                    <Ionicons
+                      name="checkmark"
+                      size={11}
+                      color="#fff"
+                      style={styles.chipCheck}
+                    />
+                  )}
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{m}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-        {/* Results */}
-        {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={c.accent} />
-          </View>
-        ) : (
-          <FlatList
-            data={exercises}
-            keyExtractor={(e) => e.id}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.item} onPress={() => onSelect(item)}>
-                <View style={styles.itemMain}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemSub} numberOfLines={1}>
-                    {[item.equipment, item.category].filter(Boolean).join(' · ')}
-                  </Text>
-                </View>
-                <Ionicons name="add-circle-outline" size={22} color={c.accent} />
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              <Text style={styles.empty}>No exercises found.</Text>
-            }
-          />
-        )}
+        {/* Results — flex:1 so this is the only child that grows */}
+        <View style={styles.results}>
+          {loading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={c.accent} />
+            </View>
+          ) : (
+            <FlatList
+              data={exercises}
+              keyExtractor={(e) => e.id}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.item} onPress={() => onSelect(item)}>
+                  <View style={styles.itemMain}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    <Text style={styles.itemSub} numberOfLines={1}>
+                      {[item.equipment, item.category].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  <Ionicons name="add-circle-outline" size={22} color={c.accent} />
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.empty}>No exercises found.</Text>
+              }
+            />
+          )}
+        </View>
       </View>
     </Modal>
   );
@@ -231,8 +235,8 @@ function makeStyles(c: Colors) {
       paddingRight: 12,
     },
     clearBtn: { fontSize: 12, color: c.accent, fontWeight: '600' },
-    chipRow: { marginBottom: 8 },
-    chipRowContent: { paddingHorizontal: 12, gap: 6 },
+    chipRowWrap: { height: 32, marginBottom: 8 },
+    chipRowContent: { paddingHorizontal: 12, gap: 6, alignItems: 'center' },
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -245,8 +249,9 @@ function makeStyles(c: Colors) {
     },
     chipActive: { backgroundColor: c.accent, borderColor: c.accent },
     chipCheck: { marginRight: 3 },
-    chipText: { color: c.subtext, fontSize: 13, textTransform: 'capitalize' },
+    chipText: { color: c.subtext, fontSize: 13, lineHeight: 18, textTransform: 'capitalize' },
     chipTextActive: { color: '#fff', fontWeight: '600' },
+    results: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 },
     item: {
       flexDirection: 'row',

@@ -13,7 +13,14 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { logSet, endSession, getSetting, getLastSet } from '../../src/db/queries';
+import {
+  logSet,
+  endSession,
+  getSetting,
+  getLastSet,
+  getExerciseNote,
+  setExerciseNote,
+} from '../../src/db/queries';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { ExercisePicker } from '../../src/components/ExercisePicker';
 import { useColors } from '../../src/theme';
@@ -36,6 +43,7 @@ export default function ActiveWorkout() {
     markSetSaved,
     addSetToExercise,
     addExercise,
+    setExerciseNote: updateNote,
     endSession: clearSession,
   } = useWorkoutStore();
 
@@ -120,9 +128,11 @@ export default function ActiveWorkout() {
 
   const handleAddExercise = async (exercise: Exercise) => {
     const last = await getLastSet(db, exercise.id);
+    const note = await getExerciseNote(db, exercise.id);
     addExercise({
       exercise_id: exercise.id,
       exercise_name: exercise.name,
+      note,
       sets: [
         {
           exercise_id: exercise.id,
@@ -180,6 +190,16 @@ export default function ActiveWorkout() {
         {exercises.map((ex) => (
           <View key={ex.exercise_id} style={styles.exerciseCard}>
             <Text style={styles.exerciseTitle}>{ex.exercise_name}</Text>
+
+            <TextInput
+              style={styles.noteInput}
+              value={ex.note ?? ''}
+              onChangeText={(v) => updateNote(ex.exercise_id, v)}
+              onEndEditing={(e) => setExerciseNote(db, ex.exercise_id, e.nativeEvent.text)}
+              placeholder="Add a note…"
+              placeholderTextColor={c.placeholder}
+              multiline
+            />
 
             <View style={styles.setHeader}>
               <Text style={styles.setHeaderCell}>Set</Text>
@@ -286,7 +306,14 @@ function makeStyles(c: Colors) {
       shadowOpacity: 0.05,
       shadowRadius: 4,
     },
-    exerciseTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 10 },
+    exerciseTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 4 },
+    noteInput: {
+      fontSize: 13,
+      fontStyle: 'italic',
+      color: c.muted,
+      paddingVertical: 2,
+      marginBottom: 8,
+    },
     setHeader: { flexDirection: 'row', marginBottom: 4, paddingHorizontal: 2 },
     setHeaderCell: { flex: 1, fontSize: 12, color: c.muted, fontWeight: '600' },
     setRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, padding: 6, borderRadius: 8 },

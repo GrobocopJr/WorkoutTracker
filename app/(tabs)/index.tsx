@@ -19,6 +19,7 @@ import {
   deleteRoutine,
   createSession,
   getRoutineExercises,
+  getExerciseNote,
 } from '../../src/db/queries';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { useColors } from '../../src/theme';
@@ -73,20 +74,23 @@ export default function WorkoutTab() {
     const today = new Date().toISOString().slice(0, 10);
     const sessionId = await createSession(db, today, routine.id);
     const rexes = await getRoutineExercises(db, routine.id);
-    const exercises = rexes.map((re) => ({
-      exercise_id: re.exercise_id,
-      exercise_name: re.exercise_name ?? re.exercise_id,
-      sets: [
-        {
-          exercise_id: re.exercise_id,
-          exercise_name: re.exercise_name ?? re.exercise_id,
-          set_number: 1,
-          weight: '',
-          reps: '',
-          saved: false,
-        },
-      ],
-    }));
+    const exercises = await Promise.all(
+      rexes.map(async (re) => ({
+        exercise_id: re.exercise_id,
+        exercise_name: re.exercise_name ?? re.exercise_id,
+        note: await getExerciseNote(db, re.exercise_id),
+        sets: [
+          {
+            exercise_id: re.exercise_id,
+            exercise_name: re.exercise_name ?? re.exercise_id,
+            set_number: 1,
+            weight: '',
+            reps: '',
+            saved: false,
+          },
+        ],
+      }))
+    );
     startSession(sessionId, exercises);
     router.push('/workout/active');
   };

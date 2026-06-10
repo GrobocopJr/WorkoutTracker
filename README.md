@@ -7,6 +7,7 @@ A personal, offline-first workout tracking app for Android built with React Nati
 - **Exercise library** — 800+ exercises from [free-exercise-db](https://github.com/yuhonas/free-exercise-db), searchable and filterable by equipment and muscle group (multi-select)
 - **Routine builder** — create named routines, add/reorder/remove exercises; exercise picker includes equipment + multi-select muscle group filters
 - **Active workout** — log sets with weight and reps, auto-filled from your last session for each exercise
+- **Exercise notes** — jot a note on any exercise (e.g. grip, cues, settings); notes are tied to the exercise and reappear every time it comes up in a future workout
 - **Rest timer** — automatic countdown after each logged set with haptic feedback on completion
 - **History calendar** — tap any date to see every set logged that day, grouped by exercise
 - **Personal records** — per-exercise stats including last weight used, best weight, and estimated 1RM via the Epley formula
@@ -76,7 +77,7 @@ Scan the QR code with Expo Go. The database is created and seeded on first launc
 
 ## Database Schema
 
-Five tables: `exercises`, `routines`, `routine_exercises`, `sessions`, `sets`, plus a `settings` key-value table. All data lives on-device in SQLite — no backend, no network requests.
+Core tables: `exercises`, `routines`, `routine_exercises`, `sessions`, `sets`, `exercise_notes` (per-exercise notes keyed by exercise), plus a `settings` key-value table. All data lives on-device in SQLite — no backend, no network requests.
 
 ## Personal Records
 

@@ -282,6 +282,35 @@ export async function getSetsForSession(
   );
 }
 
+// ── Exercise Notes ─────────────────────────────────────────────────────────
+
+export async function getExerciseNote(
+  db: SQLiteDatabase,
+  exerciseId: string
+): Promise<string> {
+  const row = await db.getFirstAsync<{ note: string }>(
+    'SELECT note FROM exercise_notes WHERE exercise_id = ?',
+    [exerciseId]
+  );
+  return row?.note ?? '';
+}
+
+export async function setExerciseNote(
+  db: SQLiteDatabase,
+  exerciseId: string,
+  note: string
+): Promise<void> {
+  if (note.trim() === '') {
+    await db.runAsync('DELETE FROM exercise_notes WHERE exercise_id = ?', [exerciseId]);
+    return;
+  }
+  await db.runAsync(
+    `INSERT OR REPLACE INTO exercise_notes (exercise_id, note, updated_at)
+     VALUES (?, ?, datetime('now'))`,
+    [exerciseId, note]
+  );
+}
+
 // ── Settings ───────────────────────────────────────────────────────────────
 
 export async function getSetting(
