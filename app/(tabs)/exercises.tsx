@@ -19,6 +19,7 @@ import {
   getFavorites,
   setFavorites,
   orderByFavorites,
+  orderExercisesByFavorites,
 } from '../../src/db/queries';
 import { ExerciseEditor } from '../../src/components/ExerciseEditor';
 import { useColors } from '../../src/theme';
@@ -49,6 +50,7 @@ export default function ExercisesTab() {
   // Favorited chips (long-press to toggle) float to the front of each list
   const [favEquip, setFavEquip] = useState<string[]>([]);
   const [favMuscle, setFavMuscle] = useState<string[]>([]);
+  const [favExercises, setFavExercises] = useState<string[]>([]);
 
   const shownEquip = orderByFavorites(equipmentList, favEquip).filter((e) =>
     e.toLowerCase().includes(equipFilter.trim().toLowerCase())
@@ -71,17 +73,26 @@ export default function ExercisesTab() {
       return next;
     });
 
+  const toggleExerciseFav = (id: string) =>
+    setFavExercises((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      void setFavorites(db, 'fav_exercises', next);
+      return next;
+    });
+
   const loadFilters = useCallback(async () => {
-    const [eq, mu, fe, fm] = await Promise.all([
+    const [eq, mu, fe, fm, fx] = await Promise.all([
       getEquipmentList(db),
       getMuscleList(db),
       getFavorites(db, 'fav_equipment'),
       getFavorites(db, 'fav_muscle'),
+      getFavorites(db, 'fav_exercises'),
     ]);
     setEquipmentList(eq);
     setMuscleList(mu);
     setFavEquip(fe);
     setFavMuscle(fm);
+    setFavExercises(fx);
   }, [db]);
 
   useFocusEffect(
@@ -244,19 +255,29 @@ export default function ExercisesTab() {
           </View>
         ) : (
           <FlatList
-            data={exercises}
+            data={orderExercisesByFavorites(exercises, favExercises)}
             keyExtractor={(ex) => ex.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => router.push(`/exercises/${item.id}`)}
-              >
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardSub}>
-                  {[item.equipment, item.category].filter(Boolean).join(' · ')}
-                </Text>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              const fav = favExercises.includes(item.id);
+              return (
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => router.push(`/exercises/${item.id}`)}
+                  onLongPress={() => toggleExerciseFav(item.id)}
+                  delayLongPress={300}
+                >
+                  <View style={styles.cardTitleRow}>
+                    {fav && (
+                      <Ionicons name="star" size={12} color={c.accent} style={styles.cardStar} />
+                    )}
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                  </View>
+                  <Text style={styles.cardSub}>
+                    {[item.equipment, item.category].filter(Boolean).join(' · ')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
             ListEmptyComponent={
               <Text style={styles.empty}>No exercises found.</Text>
             }
@@ -348,6 +369,8 @@ function makeStyles(c: Colors) {
       shadowOpacity: 0.05,
       shadowRadius: 4,
     },
+    cardTitleRow: { flexDirection: 'row', alignItems: 'center' },
+    cardStar: { marginRight: 4 },
     cardTitle: { fontSize: 15, fontWeight: '600', color: c.text },
     cardSub: { fontSize: 12, color: c.muted, marginTop: 2, textTransform: 'capitalize' },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 },

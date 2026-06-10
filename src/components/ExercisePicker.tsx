@@ -19,6 +19,7 @@ import {
   getFavorites,
   setFavorites,
   orderByFavorites,
+  orderExercisesByFavorites,
 } from '../db/queries';
 import { ExerciseEditor } from './ExerciseEditor';
 import { useColors } from '../theme';
@@ -54,6 +55,7 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
   // Favorited chips (long-press to toggle) float to the front of each list
   const [favEquip, setFavEquip] = useState<string[]>([]);
   const [favMuscle, setFavMuscle] = useState<string[]>([]);
+  const [favExercises, setFavExercises] = useState<string[]>([]);
 
   const [editorVisible, setEditorVisible] = useState(false);
 
@@ -78,6 +80,13 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
       return next;
     });
 
+  const toggleExerciseFav = (id: string) =>
+    setFavExercises((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      void setFavorites(db, 'fav_exercises', next);
+      return next;
+    });
+
   // Load filter option lists once on first open
   useEffect(() => {
     if (visible && !filtersLoaded) {
@@ -94,6 +103,7 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
     if (!visible) return;
     getFavorites(db, 'fav_equipment').then(setFavEquip);
     getFavorites(db, 'fav_muscle').then(setFavMuscle);
+    getFavorites(db, 'fav_exercises').then(setFavExercises);
   }, [visible, db]);
 
   // Re-query exercises whenever any filter changes
@@ -298,20 +308,33 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
             </View>
           ) : (
             <FlatList
-              data={exercises}
+              data={orderExercisesByFavorites(exercises, favExercises)}
               keyExtractor={(e) => e.id}
               keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.item} onPress={() => onSelect(item)}>
-                  <View style={styles.itemMain}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemSub} numberOfLines={1}>
-                      {[item.equipment, item.category].filter(Boolean).join(' · ')}
-                    </Text>
-                  </View>
-                  <Ionicons name="add-circle-outline" size={22} color={c.accent} />
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const fav = favExercises.includes(item.id);
+                return (
+                  <TouchableOpacity
+                    style={styles.item}
+                    onPress={() => onSelect(item)}
+                    onLongPress={() => toggleExerciseFav(item.id)}
+                    delayLongPress={300}
+                  >
+                    <View style={styles.itemMain}>
+                      <View style={styles.itemNameRow}>
+                        {fav && (
+                          <Ionicons name="star" size={12} color={c.accent} style={styles.itemStar} />
+                        )}
+                        <Text style={styles.itemName}>{item.name}</Text>
+                      </View>
+                      <Text style={styles.itemSub} numberOfLines={1}>
+                        {[item.equipment, item.category].filter(Boolean).join(' · ')}
+                      </Text>
+                    </View>
+                    <Ionicons name="add-circle-outline" size={22} color={c.accent} />
+                  </TouchableOpacity>
+                );
+              }}
               ListEmptyComponent={
                 <Text style={styles.empty}>No exercises found.</Text>
               }
@@ -415,6 +438,8 @@ function makeStyles(c: Colors) {
       borderBottomColor: c.divider,
     },
     itemMain: { flex: 1 },
+    itemNameRow: { flexDirection: 'row', alignItems: 'center' },
+    itemStar: { marginRight: 4 },
     itemName: { fontSize: 15, fontWeight: '600', color: c.text },
     itemSub: { fontSize: 12, color: c.muted, marginTop: 2, textTransform: 'capitalize' },
     empty: { color: c.muted, textAlign: 'center', marginTop: 40 },

@@ -471,7 +471,7 @@ export async function setExerciseNote(
 
 // ── Favorites (equipment / muscle chips) ───────────────────────────────────
 
-export type FavoriteKey = 'fav_equipment' | 'fav_muscle';
+export type FavoriteKey = 'fav_equipment' | 'fav_muscle' | 'fav_exercises';
 
 export async function getFavorites(
   db: SQLiteDatabase,
@@ -501,6 +501,15 @@ export function orderByFavorites(list: string[], favs: string[]): string[] {
   const favored = list.filter((x) => favSet.has(x));
   const rest = list.filter((x) => !favSet.has(x));
   return [...favored, ...rest];
+}
+
+// Same as orderByFavorites but for Exercise objects keyed by id.
+export function orderExercisesByFavorites(exercises: Exercise[], favIds: string[]): Exercise[] {
+  const favSet = new Set(favIds);
+  return [
+    ...exercises.filter((e) => favSet.has(e.id)),
+    ...exercises.filter((e) => !favSet.has(e.id)),
+  ];
 }
 
 // ── Settings ───────────────────────────────────────────────────────────────

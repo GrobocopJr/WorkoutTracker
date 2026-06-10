@@ -4,7 +4,7 @@ A personal, offline-first workout tracking app for Android built with React Nati
 
 ## Features
 
-- **Exercise library** — 800+ exercises from [free-exercise-db](https://github.com/yuhonas/free-exercise-db), searchable and filterable by equipment and muscle group (multi-select); tap the 🔍 icon to type-filter the filter chips, and long-press a chip to ⭐ favorite it so it floats to the front (saved across launches)
+- **Exercise library** — 800+ exercises from [free-exercise-db](https://github.com/yuhonas/free-exercise-db), searchable and filterable by equipment and muscle group (multi-select); tap the 🔍 icon to type-filter the filter chips, long-press a chip to ⭐ favorite it so it floats to the front (saved across launches); long-press any exercise card to ⭐ favorite it so it rises to the top of results in both the library and the Add Exercise picker
 - **Custom exercises** — create your own exercises with equipment + muscle-group tags, rename an exercise mid-workout and optionally save it to the library, and delete custom exercises (app-bundled ones are protected)
 - **Routine builder** — create named routines, add/reorder/remove exercises; drag the ☰ handle on any routine card to reorder your routines list (order persisted to SQLite); exercise picker includes equipment + multi-select muscle group filters
 - **Active workout** — log sets with weight and reps, auto-filled from your last session for each exercise; add or remove sets on the fly, remove an exercise entirely, drag the ☰ handle to reorder exercises, and tap the chevron (or double-tap the title) to collapse an exercise into a compact summary (removing a logged set/exercise deletes it from history)
