@@ -70,6 +70,8 @@ export default function ActiveWorkout() {
   const styles = useMemo(() => makeStyles(c), [c]);
 
   const [units, setUnits] = useState('lbs');
+  const [show1RM, setShow1RM] = useState(true);
+  const [best1RMs, setBest1RMs] = useState<Record<string, number | null>>({});
   const [pickerVisible, setPickerVisible] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
@@ -84,8 +86,21 @@ export default function ActiveWorkout() {
   const prevTimerRunning = useRef(false);
 
   useEffect(() => {
-    getSetting(db, 'units').then((u) => { if (u) setUnits(u); });
+    Promise.all([getSetting(db, 'units'), getSetting(db, 'show_1rm')]).then(([u, s]) => {
+      if (u) setUnits(u);
+      setShow1RM(s !== '0');
+    });
   }, [db]);
+
+  // Fetch best 1RM for every exercise currently in the workout.
+  const loadBest1RMs = useCallback(async () => {
+    const entries = await Promise.all(
+      exercises.map(async (ex) => [ex.exercise_id, await getBest1RM(db, ex.exercise_id)] as const)
+    );
+    setBest1RMs(Object.fromEntries(entries));
+  }, [db, exercises]);
+
+  useEffect(() => { void loadBest1RMs(); }, [exercises.length]);
 
   useEffect(() => {
     exercises.forEach((ex) => {
@@ -160,6 +175,10 @@ export default function ActiveWorkout() {
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    // Update the displayed 1RM for this exercise.
+    getBest1RM(db, exerciseId).then((best) => {
+      setBest1RMs((prev) => ({ ...prev, [exerciseId]: best }));
+    });
     startTimer(timerDefault);
   };
 
@@ -345,6 +364,8 @@ export default function ActiveWorkout() {
               c={c}
               collapsed={!!collapsed[item.exercise_id]}
               prKeys={prKeys}
+              show1RM={show1RM}
+              best1RM={best1RMs[item.exercise_id] ?? null}
               onToggleCollapse={toggleCollapse}
               onRename={openRename}
               onLog={handleLogSet}
@@ -422,6 +443,8 @@ interface ExerciseCardProps {
   c: Colors;
   collapsed: boolean;
   prKeys: Set<string>;
+  show1RM: boolean;
+  best1RM: number | null;
   onToggleCollapse: (exerciseId: string) => void;
   onRename: (exerciseId: string, currentName: string) => void;
   onLog: (
@@ -443,6 +466,8 @@ function ExerciseCard({
   c,
   collapsed,
   prKeys,
+  show1RM,
+  best1RM,
   onToggleCollapse,
   onRename,
   onLog,
@@ -493,6 +518,11 @@ function ExerciseCard({
           <Text style={styles.exerciseTitle} numberOfLines={1}>
             {ex.exercise_name}
           </Text>
+          {show1RM && best1RM != null && (
+            <Text style={styles.exercise1RM} numberOfLines={1}>
+              ({Math.round(best1RM)} {units})
+            </Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           onLongPress={drag}
@@ -689,7 +719,8 @@ function makeStyles(c: Colors) {
     },
     chevronBtn: { paddingRight: 4, paddingVertical: 4 },
     titleArea: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-    exerciseTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text },
+    exerciseTitle: { flexShrink: 1, fontSize: 16, fontWeight: '700', color: c.text },
+    exercise1RM: { flexShrink: 0, fontSize: 13, color: c.muted, marginLeft: 6 },
     collapsedSummary: { fontSize: 13, color: c.muted, marginTop: 2, marginLeft: 22 },
     dragHandle: { paddingHorizontal: 8 },
     noteInput: {

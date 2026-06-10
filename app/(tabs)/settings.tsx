@@ -26,17 +26,20 @@ export default function SettingsTab() {
 
   const [units, setUnits] = useState<Units>('lbs');
   const [restSeconds, setRestSeconds] = useState('90');
+  const [show1RM, setShow1RM] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     const u = await getSetting(db, 'units');
     const r = await getSetting(db, 'default_rest_seconds');
+    const s = await getSetting(db, 'show_1rm');
     if (u) setUnits(u as Units);
     if (r) {
       setRestSeconds(r);
       setTimerDefault(Number(r));
     }
+    setShow1RM(s !== '0');
     setLoading(false);
   }, [db, setTimerDefault]);
 
@@ -59,6 +62,11 @@ export default function SettingsTab() {
   const handleThemeChange = async (mode: ThemeMode) => {
     setTheme(mode);
     await setSetting(db, 'theme', mode);
+  };
+
+  const handleShow1RMChange = async (val: boolean) => {
+    setShow1RM(val);
+    await setSetting(db, 'show_1rm', val ? '1' : '0');
   };
 
   if (loading) {
@@ -106,6 +114,24 @@ export default function SettingsTab() {
             <Text style={[styles.toggleText, units === 'kg' && styles.toggleTextActive]}>
               kg
             </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Show 1RM in Workout</Text>
+        <View style={styles.toggle}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, show1RM && styles.toggleActive]}
+            onPress={() => handleShow1RMChange(true)}
+          >
+            <Text style={[styles.toggleText, show1RM && styles.toggleTextActive]}>On</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, !show1RM && styles.toggleActive]}
+            onPress={() => handleShow1RMChange(false)}
+          >
+            <Text style={[styles.toggleText, !show1RM && styles.toggleTextActive]}>Off</Text>
           </TouchableOpacity>
         </View>
       </View>

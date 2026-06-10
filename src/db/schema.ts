@@ -83,5 +83,6 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
   ('default_rest_seconds', '90'),
   ('units', 'lbs'),
   ('seeded', '0'),
-  ('theme', 'system');
+  ('theme', 'system'),
+  ('show_1rm', '1');
 `;
