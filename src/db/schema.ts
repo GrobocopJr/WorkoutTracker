@@ -21,6 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_exercises_equipment ON exercises(equipment);
 CREATE TABLE IF NOT EXISTS routines (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   name       TEXT NOT NULL,
+  position   INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

@@ -137,7 +137,16 @@ export async function getMuscleList(db: SQLiteDatabase): Promise<string[]> {
 // ── Routines ───────────────────────────────────────────────────────────────
 
 export async function getRoutines(db: SQLiteDatabase): Promise<Routine[]> {
-  return db.getAllAsync<Routine>('SELECT * FROM routines ORDER BY updated_at DESC');
+  return db.getAllAsync<Routine>('SELECT * FROM routines ORDER BY position ASC, updated_at DESC');
+}
+
+export async function reorderRoutines(
+  db: SQLiteDatabase,
+  orderedIds: number[]
+): Promise<void> {
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db.runAsync('UPDATE routines SET position = ? WHERE id = ?', [i, orderedIds[i]]);
+  }
 }
 
 export async function getRoutineById(
@@ -151,9 +160,13 @@ export async function createRoutine(
   db: SQLiteDatabase,
   name: string
 ): Promise<number> {
+  const row = await db.getFirstAsync<{ max_pos: number | null }>(
+    'SELECT MAX(position) AS max_pos FROM routines'
+  );
+  const nextPos = (row?.max_pos ?? -1) + 1;
   const result = await db.runAsync(
-    'INSERT INTO routines (name) VALUES (?)',
-    [name]
+    'INSERT INTO routines (name, position) VALUES (?, ?)',
+    [name, nextPos]
   );
   return result.lastInsertRowId;
 }

@@ -46,6 +46,20 @@ async function migrateDb(db: SQLiteDatabase) {
   if (!exerciseCols.some((col) => col.name === 'is_custom')) {
     await db.execAsync('ALTER TABLE exercises ADD COLUMN is_custom INTEGER NOT NULL DEFAULT 0');
   }
+
+  const routineCols = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(routines)'
+  );
+  if (!routineCols.some((col) => col.name === 'position')) {
+    await db.execAsync('ALTER TABLE routines ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
+    // Seed positions from the existing most-recent-first order.
+    const rows = await db.getAllAsync<{ id: number }>(
+      'SELECT id FROM routines ORDER BY updated_at DESC'
+    );
+    for (let i = 0; i < rows.length; i++) {
+      await db.runAsync('UPDATE routines SET position = ? WHERE id = ?', [i, rows[i].id]);
+    }
+  }
 }
 
 function ThemeLoader() {

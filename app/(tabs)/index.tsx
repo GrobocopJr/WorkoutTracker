@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   Alert,
   TextInput,
@@ -10,6 +9,12 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import ReorderableList, {
+  useReorderableDrag,
+  reorderItems,
+} from 'react-native-reorderable-list';
+import type { ReorderableListReorderEvent } from 'react-native-reorderable-list';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +22,7 @@ import {
   getRoutines,
   createRoutine,
   deleteRoutine,
+  reorderRoutines,
   createSession,
   getRoutineExercises,
   getExerciseNote,
@@ -25,6 +31,8 @@ import { useWorkoutStore } from '../../src/store/workoutStore';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { Routine } from '../../src/types';
+
+type Styles = ReturnType<typeof makeStyles>;
 
 export default function WorkoutTab() {
   const db = useSQLiteContext();
@@ -69,6 +77,12 @@ export default function WorkoutTab() {
         },
       },
     ]);
+  };
+
+  const handleReorder = ({ from, to }: ReorderableListReorderEvent) => {
+    const next = reorderItems(routines, from, to);
+    setRoutines(next);
+    void reorderRoutines(db, next.map((r) => r.id));
   };
 
   const handleStartWorkout = async (routine: Routine) => {
@@ -139,35 +153,24 @@ export default function WorkoutTab() {
       {routines.length === 0 ? (
         <Text style={styles.empty}>No routines yet. Tap + to create one.</Text>
       ) : (
-        <FlatList
-          data={routines}
-          keyExtractor={(r) => String(r.id)}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <TouchableOpacity
-                style={styles.cardMain}
-                onPress={() => handleStartWorkout(item)}
-              >
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardSub}>Tap to start workout</Text>
-              </TouchableOpacity>
-              <View style={styles.cardActions}>
-                <TouchableOpacity
-                  onPress={() => router.push(`/routines/${item.id}`)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="create-outline" size={22} color={c.muted} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="trash-outline" size={22} color={c.danger} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        />
+        <GestureHandlerRootView style={styles.listWrap}>
+          <ReorderableList
+            data={routines}
+            onReorder={handleReorder}
+            keyExtractor={(r) => String(r.id)}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            renderItem={({ item }) => (
+              <RoutineCard
+                routine={item}
+                styles={styles}
+                c={c}
+                onStart={() => handleStartWorkout(item)}
+                onEdit={() => router.push(`/routines/${item.id}`)}
+                onDelete={() => handleDelete(item)}
+              />
+            )}
+          />
+        </GestureHandlerRootView>
       )}
 
       <Modal visible={modalVisible} transparent animationType="fade">
@@ -204,9 +207,47 @@ export default function WorkoutTab() {
   );
 }
 
+interface RoutineCardProps {
+  routine: Routine;
+  styles: Styles;
+  c: Colors;
+  onStart: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function RoutineCard({ routine, styles, c, onStart, onEdit, onDelete }: RoutineCardProps) {
+  const drag = useReorderableDrag();
+  return (
+    <View style={styles.card}>
+      <TouchableOpacity style={styles.cardMain} onPress={onStart}>
+        <Text style={styles.cardTitle}>{routine.name}</Text>
+        <Text style={styles.cardSub}>Tap to start workout</Text>
+      </TouchableOpacity>
+      <View style={styles.cardActions}>
+        <TouchableOpacity onPress={onEdit} style={styles.iconBtn}>
+          <Ionicons name="create-outline" size={22} color={c.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onDelete} style={styles.iconBtn}>
+          <Ionicons name="trash-outline" size={22} color={c.danger} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onLongPress={drag}
+          delayLongPress={150}
+          style={styles.iconBtn}
+          hitSlop={8}
+        >
+          <Ionicons name="reorder-three-outline" size={24} color={c.muted} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 function makeStyles(c: Colors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg, padding: 16 },
+    listWrap: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg },
     emptyBtn: {
       flexDirection: 'row',
