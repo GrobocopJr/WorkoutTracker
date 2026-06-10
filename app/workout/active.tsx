@@ -45,6 +45,7 @@ export default function ActiveWorkout() {
     addSetToExercise,
     removeLastSet,
     addExercise,
+    removeExercise,
     setExerciseNote: updateNote,
     endSession: clearSession,
   } = useWorkoutStore();
@@ -112,6 +113,23 @@ export default function ActiveWorkout() {
     markSetSaved(exerciseId, setIndex, newId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     startTimer(timerDefault);
+  };
+
+  const handleRemoveExercise = (exerciseId: string, exerciseName: string) => {
+    const ex = exercises.find((e) => e.exercise_id === exerciseId);
+    if (!ex) return;
+    const loggedIds = ex.sets.filter((s) => s.saved && s.id != null).map((s) => s.id as number);
+    const doRemove = async () => {
+      for (const id of loggedIds) await deleteSet(db, id);
+      removeExercise(exerciseId);
+    };
+    const msg = loggedIds.length
+      ? `Remove "${exerciseName}"? Its ${loggedIds.length} logged set${loggedIds.length > 1 ? 's' : ''} will be deleted from history.`
+      : `Remove "${exerciseName}" from this workout?`;
+    Alert.alert('Remove Exercise', msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: doRemove },
+    ]);
   };
 
   const handleRemoveSet = (exerciseId: string) => {
@@ -213,7 +231,15 @@ export default function ActiveWorkout() {
 
         {exercises.map((ex) => (
           <View key={ex.exercise_id} style={styles.exerciseCard}>
-            <Text style={styles.exerciseTitle}>{ex.exercise_name}</Text>
+            <View style={styles.exerciseHeader}>
+              <Text style={styles.exerciseTitle}>{ex.exercise_name}</Text>
+              <TouchableOpacity
+                onPress={() => handleRemoveExercise(ex.exercise_id, ex.exercise_name)}
+                hitSlop={10}
+              >
+                <Ionicons name="trash-outline" size={20} color={c.danger} />
+              </TouchableOpacity>
+            </View>
 
             <TextInput
               style={styles.noteInput}
@@ -341,7 +367,13 @@ function makeStyles(c: Colors) {
       shadowOpacity: 0.05,
       shadowRadius: 4,
     },
-    exerciseTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 4 },
+    exerciseHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    exerciseTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text },
     noteInput: {
       fontSize: 13,
       fontStyle: 'italic',

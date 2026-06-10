@@ -11,6 +11,7 @@ interface WorkoutState {
   startSession: (sessionId: number, exercises: ActiveExercise[]) => void;
   endSession: () => void;
   addExercise: (exercise: ActiveExercise) => void;
+  removeExercise: (exerciseId: string) => void;
   updateSet: (
     exerciseId: string,
     setIndex: number,
@@ -42,6 +43,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
   addExercise: (exercise) =>
     set((state) => ({ exercises: [...state.exercises, exercise] })),
+
+  removeExercise: (exerciseId) =>
+    set((state) => ({
+      exercises: state.exercises.filter((ex) => ex.exercise_id !== exerciseId),
+    })),
 
   updateSet: (exerciseId, setIndex, field, value) =>
     set((state) => ({
