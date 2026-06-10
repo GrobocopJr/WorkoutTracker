@@ -76,11 +76,23 @@ Requires [Node.js](https://nodejs.org) and the [Expo Go](https://expo.dev/go) ap
 
 ```bash
 cd WorkoutTracker
-npm install --legacy-peer-deps
+npm install
 npx expo start
 ```
 
-The `--legacy-peer-deps` flag avoids a benign `react-dom` version-range conflict in the Expo dependency tree. Scan the QR code with Expo Go. The database is created and seeded on first launch.
+`legacy-peer-deps=true` is set in `.npmrc` to handle a benign `react-dom` version-range conflict in the Expo dependency tree — no flag needed on the command line. Scan the QR code with Expo Go. The database is created and seeded on first launch.
+
+### Running from WSL2
+
+The Expo dev server binds to a WSL2-internal IP that Android devices on your LAN cannot reach. Use tunnel mode instead:
+
+```bash
+npx expo start --tunnel --port 8083
+```
+
+This routes traffic through Expo's servers so the Expo Go QR code works from any network. The first run will prompt to install `@expo/ngrok` — accept it.
+
+Line endings are enforced to LF via `.gitattributes` to prevent CRLF issues when the repo is cloned on Windows and developed in WSL2.
 
 ## Database Schema
 
