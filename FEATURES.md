@@ -6,7 +6,7 @@ Track planned features. Check off items as they are completed.
 <!-- none -->
 
 ## Quality of Life
-- [ ] **Workout duration timer** — show elapsed time while a session is active, saved to history
+- [x] **Workout duration timer** — elapsed time shown in a bar at the top of the active workout; pause/resume button; timer state (including accumulated paused time) persists across navigation and app reloads via Zustand + SQLite; duration shown on history cards
 - [ ] **Rest timer auto-start** — auto-trigger the rest timer the moment a set is logged
 - [ ] **Plate calculator** — given a target weight and available plates, show exactly what to load on each side of the bar
 - [ ] **Set completion checkmarks** — visually tick off each set as you log it so you don't lose your place mid-workout

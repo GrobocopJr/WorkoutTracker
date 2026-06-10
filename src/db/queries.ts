@@ -421,6 +421,9 @@ export interface PersistedSession {
   sessionId: number;
   routineId: number | null;
   exercises: ActiveExercise[];
+  durationPaused: boolean;
+  durationPausedMs: number;
+  durationPausedAt: number | null;
 }
 
 export async function saveActiveSession(

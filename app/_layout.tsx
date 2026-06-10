@@ -83,6 +83,9 @@ function SessionPersister() {
   const sessionId = useWorkoutStore((s) => s.sessionId);
   const routineId = useWorkoutStore((s) => s.routineId);
   const exercises = useWorkoutStore((s) => s.exercises);
+  const durationPaused = useWorkoutStore((s) => s.durationPaused);
+  const durationPausedMs = useWorkoutStore((s) => s.durationPausedMs);
+  const durationPausedAt = useWorkoutStore((s) => s.durationPausedAt);
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,9 +93,13 @@ function SessionPersister() {
   useEffect(() => {
     loadActiveSession(db).then((saved) => {
       if (saved && useWorkoutStore.getState().sessionId == null) {
-        useWorkoutStore
-          .getState()
-          .startSession(saved.sessionId, saved.exercises, saved.routineId ?? null);
+        const store = useWorkoutStore.getState();
+        store.startSession(saved.sessionId, saved.exercises, saved.routineId ?? null);
+        store.setDurationState(
+          saved.durationPaused ?? false,
+          saved.durationPausedMs ?? 0,
+          saved.durationPausedAt ?? null,
+        );
       }
       hydrated.current = true;
     });
@@ -107,12 +114,15 @@ function SessionPersister() {
       return;
     }
     saveTimer.current = setTimeout(() => {
-      void saveActiveSession(db, { sessionId, routineId, exercises });
+      void saveActiveSession(db, {
+        sessionId, routineId, exercises,
+        durationPaused, durationPausedMs, durationPausedAt,
+      });
     }, 400);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [sessionId, routineId, exercises, db]);
+  }, [sessionId, routineId, exercises, durationPaused, durationPausedMs, durationPausedAt, db]);
 
   return null;
 }

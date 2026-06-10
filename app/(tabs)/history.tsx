@@ -38,6 +38,20 @@ interface SessionWithSets {
   sets: SetDetail[];
 }
 
+function formatDuration(startedAt: string, endedAt: string | null): string | null {
+  if (!endedAt) return null;
+  const start = new Date(startedAt.replace(' ', 'T') + 'Z');
+  const end = new Date(endedAt.replace(' ', 'T') + 'Z');
+  const secs = Math.floor((end.getTime() - start.getTime()) / 1000);
+  if (secs <= 0) return null;
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
 // SQLite datetime('now') is UTC ('YYYY-MM-DD HH:MM:SS'); show it in Chicago time.
 function formatChicagoTime(utc: string | null): string {
   if (!utc) return '';
@@ -192,10 +206,21 @@ export default function HistoryTab() {
                     <Text style={styles.sessionName}>
                       {session.name?.trim() || 'Workout'}
                     </Text>
-                    <Text style={styles.sessionTime}>
-                      {formatChicagoTime(session.started_at)}
-                      {session.ended_at ? ` – ${formatChicagoTime(session.ended_at)}` : ''}
-                    </Text>
+                    <View style={styles.sessionMeta}>
+                      <Text style={styles.sessionTime}>
+                        {formatChicagoTime(session.started_at)}
+                        {session.ended_at ? ` – ${formatChicagoTime(session.ended_at)}` : ''}
+                      </Text>
+                      {formatDuration(session.started_at, session.ended_at) && (
+                        <>
+                          <Text style={styles.sessionMetaDot}>·</Text>
+                          <Ionicons name="time-outline" size={12} color={c.muted} />
+                          <Text style={styles.sessionTime}>
+                            {formatDuration(session.started_at, session.ended_at)}
+                          </Text>
+                        </>
+                      )}
+                    </View>
                   </View>
                   <TouchableOpacity onPress={() => openRename(session)} hitSlop={8} style={styles.iconBtn}>
                     <Ionicons name="create-outline" size={20} color={c.muted} />
@@ -291,7 +316,9 @@ function makeStyles(c: Colors) {
     },
     sessionHeaderMain: { flex: 1 },
     sessionName: { fontSize: 15, fontWeight: '700', color: c.text },
-    sessionTime: { fontSize: 13, color: c.muted, marginTop: 2 },
+    sessionMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, flexWrap: 'wrap' },
+    sessionMetaDot: { fontSize: 13, color: c.muted },
+    sessionTime: { fontSize: 13, color: c.muted },
     iconBtn: { paddingHorizontal: 6 },
     exerciseBlock: { marginBottom: 8 },
     exerciseName: { fontSize: 15, fontWeight: '600', color: c.text, marginBottom: 2 },

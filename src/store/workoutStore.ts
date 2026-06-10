@@ -8,6 +8,10 @@ interface WorkoutState {
   timerSeconds: number;
   timerRunning: boolean;
   timerDefault: number;
+  // Workout duration tracking (count-up, pauseable)
+  durationPaused: boolean;
+  durationPausedMs: number;       // total accumulated paused milliseconds
+  durationPausedAt: number | null; // timestamp when current pause started
 
   startSession: (
     sessionId: number,
@@ -34,6 +38,9 @@ interface WorkoutState {
   tickTimer: () => void;
   stopTimer: () => void;
   setTimerDefault: (seconds: number) => void;
+  pauseDuration: () => void;
+  resumeDuration: () => void;
+  setDurationState: (paused: boolean, pausedMs: number, pausedAt: number | null) => void;
 }
 
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
@@ -43,12 +50,23 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   timerSeconds: 0,
   timerRunning: false,
   timerDefault: 90,
+  durationPaused: false,
+  durationPausedMs: 0,
+  durationPausedAt: null,
 
   startSession: (sessionId, exercises, routineId) =>
-    set({ sessionId, routineId, exercises, timerSeconds: 0, timerRunning: false }),
+    set({
+      sessionId, routineId, exercises,
+      timerSeconds: 0, timerRunning: false,
+      durationPaused: false, durationPausedMs: 0, durationPausedAt: null,
+    }),
 
   endSession: () =>
-    set({ sessionId: null, routineId: null, exercises: [], timerSeconds: 0, timerRunning: false }),
+    set({
+      sessionId: null, routineId: null, exercises: [],
+      timerSeconds: 0, timerRunning: false,
+      durationPaused: false, durationPausedMs: 0, durationPausedAt: null,
+    }),
 
   addExercise: (exercise) =>
     set((state) => ({ exercises: [...state.exercises, exercise] })),
@@ -165,4 +183,16 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   stopTimer: () => set({ timerSeconds: 0, timerRunning: false }),
 
   setTimerDefault: (seconds) => set({ timerDefault: seconds }),
+
+  pauseDuration: () => set({ durationPaused: true, durationPausedAt: Date.now() }),
+
+  resumeDuration: () =>
+    set((s) => ({
+      durationPaused: false,
+      durationPausedMs: s.durationPausedMs + (s.durationPausedAt ? Date.now() - s.durationPausedAt : 0),
+      durationPausedAt: null,
+    })),
+
+  setDurationState: (paused, pausedMs, pausedAt) =>
+    set({ durationPaused: paused, durationPausedMs: pausedMs, durationPausedAt: pausedAt }),
 }));

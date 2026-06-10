@@ -64,6 +64,11 @@ export default function ActiveWorkout() {
     renameExercise,
     replaceExerciseId,
     endSession: clearSession,
+    durationPaused,
+    durationPausedMs,
+    durationPausedAt,
+    pauseDuration,
+    resumeDuration,
   } = useWorkoutStore();
 
   const c = useColors();
@@ -72,6 +77,9 @@ export default function ActiveWorkout() {
   const [units, setUnits] = useState('lbs');
   const [show1RM, setShow1RM] = useState(true);
   const [best1RMs, setBest1RMs] = useState<Record<string, number | null>>({});
+  const [workoutStartMs, setWorkoutStartMs] = useState<number | null>(null);
+  // Incremented every second when running; used only to trigger re-renders.
+  const [, setTick] = useState(0);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
@@ -91,6 +99,26 @@ export default function ActiveWorkout() {
       setShow1RM(s !== '0');
     });
   }, [db]);
+
+  // Fetch the session's started_at so we can compute elapsed time.
+  useEffect(() => {
+    if (!sessionId) return;
+    db.getFirstAsync<{ started_at: string }>(
+      'SELECT started_at FROM sessions WHERE id = ?',
+      [sessionId]
+    ).then((row) => {
+      if (row) {
+        setWorkoutStartMs(new Date(row.started_at.replace(' ', 'T') + 'Z').getTime());
+      }
+    });
+  }, [db, sessionId]);
+
+  // Tick once per second to keep the elapsed display current (only when running).
+  useEffect(() => {
+    if (durationPaused) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [durationPaused]);
 
   // Fetch best 1RM for every exercise currently in the workout.
   const loadBest1RMs = useCallback(async () => {
@@ -317,6 +345,21 @@ export default function ActiveWorkout() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const formatElapsed = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // Compute elapsed: frozen at pause point when paused, live otherwise.
+  const elapsedSeconds = workoutStartMs
+    ? durationPaused && durationPausedAt != null
+      ? Math.max(0, Math.floor((durationPausedAt - workoutStartMs - durationPausedMs) / 1000))
+      : Math.max(0, Math.floor((Date.now() - workoutStartMs - durationPausedMs) / 1000))
+    : 0;
+
   if (!sessionId) {
     return (
       <View style={styles.centered}>
@@ -345,6 +388,22 @@ export default function ActiveWorkout() {
           </TouchableOpacity>
         </View>
       )}
+
+      <View style={styles.durationBar}>
+        <Ionicons name="time-outline" size={15} color={c.muted} />
+        <Text style={styles.durationText}>{formatElapsed(elapsedSeconds)}</Text>
+        <TouchableOpacity
+          onPress={durationPaused ? resumeDuration : pauseDuration}
+          hitSlop={10}
+          style={styles.durationToggle}
+        >
+          <Ionicons
+            name={durationPaused ? 'play-circle-outline' : 'pause-circle-outline'}
+            size={20}
+            color={durationPaused ? c.accent : c.muted}
+          />
+        </TouchableOpacity>
+      </View>
 
       <GestureHandlerRootView style={styles.scroll}>
         <ReorderableList
@@ -699,6 +758,18 @@ function makeStyles(c: Colors) {
     },
     timerDone: { backgroundColor: c.success },
     timerText: { flex: 1, color: '#fff', fontWeight: '700', fontSize: 16 },
+    durationBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      backgroundColor: c.card,
+      borderBottomWidth: 1,
+      borderBottomColor: c.borderLight,
+    },
+    durationText: { flex: 1, fontSize: 13, fontWeight: '600', color: c.muted },
+    durationToggle: { padding: 2 },
     scroll: { flex: 1 },
     scrollContent: { padding: 14, paddingBottom: 100 },
     empty: { color: c.muted, textAlign: 'center', marginTop: 40, fontSize: 15 },
