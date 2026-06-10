@@ -8,19 +8,18 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Modal,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   getRoutineById,
   getRoutineExercises,
   updateRoutineName,
   removeExerciseFromRoutine,
-  getExercises,
+  addExerciseToRoutine,
 } from '../../src/db/queries';
-import { addExerciseToRoutine } from '../../src/db/queries';
+import { ExercisePicker } from '../../src/components/ExercisePicker';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { RoutineExercise, Exercise } from '../../src/types';
@@ -30,7 +29,6 @@ export default function RoutineEditor() {
   const routineId = Number(id);
   const db = useSQLiteContext();
   const navigation = useNavigation();
-  const router = useRouter();
   const c = useColors();
   const styles = useMemo(() => makeStyles(c), [c]);
 
@@ -39,8 +37,6 @@ export default function RoutineEditor() {
   const [exercises, setExercises] = useState<RoutineExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [pickerSearch, setPickerSearch] = useState('');
-  const [pickerExercises, setPickerExercises] = useState<Exercise[]>([]);
 
   const load = useCallback(async () => {
     const routine = await getRoutineById(db, routineId);
@@ -53,9 +49,7 @@ export default function RoutineEditor() {
     setLoading(false);
   }, [db, routineId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const handleSaveName = async () => {
     const trimmed = name.trim();
@@ -79,22 +73,9 @@ export default function RoutineEditor() {
     ]);
   };
 
-  const openPicker = async () => {
-    const data = await getExercises(db, '', '', '');
-    setPickerExercises(data);
-    setPickerVisible(true);
-  };
-
-  const filterPicker = async (search: string) => {
-    setPickerSearch(search);
-    const data = await getExercises(db, search, '', '');
-    setPickerExercises(data);
-  };
-
   const handleAddExercise = async (exercise: Exercise) => {
     await addExerciseToRoutine(db, routineId, exercise.id);
     setPickerVisible(false);
-    setPickerSearch('');
     load();
   };
 
@@ -131,7 +112,7 @@ export default function RoutineEditor() {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Exercises ({exercises.length})</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openPicker}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setPickerVisible(true)}>
           <Ionicons name="add" size={20} color="#fff" />
           <Text style={styles.addBtnText}>Add</Text>
         </TouchableOpacity>
@@ -160,34 +141,11 @@ export default function RoutineEditor() {
         />
       )}
 
-      <Modal visible={pickerVisible} animationType="slide">
-        <View style={styles.pickerContainer}>
-          <View style={styles.pickerHeader}>
-            <Text style={styles.pickerTitle}>Add Exercise</Text>
-            <TouchableOpacity onPress={() => { setPickerVisible(false); setPickerSearch(''); }}>
-              <Ionicons name="close" size={26} color={c.text} />
-            </TouchableOpacity>
-          </View>
-          <TextInput
-            style={styles.pickerSearch}
-            placeholder="Search..."
-            placeholderTextColor={c.placeholder}
-            value={pickerSearch}
-            onChangeText={filterPicker}
-            autoFocus
-          />
-          <FlatList
-            data={pickerExercises}
-            keyExtractor={(e) => e.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.pickerItem} onPress={() => handleAddExercise(item)}>
-                <Text style={styles.pickerItemText}>{item.name}</Text>
-                <Text style={styles.pickerItemSub}>{item.equipment ?? ''}</Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      </Modal>
+      <ExercisePicker
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        onSelect={handleAddExercise}
+      />
     </View>
   );
 }
@@ -219,12 +177,7 @@ function makeStyles(c: Colors) {
       padding: 4,
       color: c.text,
     },
-    saveBtn: {
-      backgroundColor: c.accent,
-      borderRadius: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-    },
+    saveBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
     saveBtnText: { color: '#fff', fontWeight: '600' },
     sectionHeader: {
       flexDirection: 'row',
@@ -260,34 +213,5 @@ function makeStyles(c: Colors) {
     cardMain: { flex: 1 },
     cardTitle: { fontSize: 15, fontWeight: '600', color: c.text },
     cardSub: { fontSize: 12, color: c.muted, textTransform: 'capitalize' },
-    pickerContainer: { flex: 1, backgroundColor: c.bg },
-    pickerHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: 16,
-      backgroundColor: c.card,
-      borderBottomWidth: 1,
-      borderBottomColor: c.borderLight,
-    },
-    pickerTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-    pickerSearch: {
-      margin: 12,
-      backgroundColor: c.inputBg,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: c.border,
-      padding: 10,
-      fontSize: 15,
-      color: c.text,
-    },
-    pickerItem: {
-      backgroundColor: c.card,
-      padding: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: c.divider,
-    },
-    pickerItemText: { fontSize: 15, color: c.text },
-    pickerItemSub: { fontSize: 12, color: c.muted, textTransform: 'capitalize' },
   });
 }

@@ -4,8 +4,8 @@ A personal, offline-first workout tracking app for Android built with React Nati
 
 ## Features
 
-- **Exercise library** — 800+ exercises from [free-exercise-db](https://github.com/yuhonas/free-exercise-db), searchable and filterable by equipment and muscle group
-- **Routine builder** — create named routines, add/reorder/remove exercises
+- **Exercise library** — 800+ exercises from [free-exercise-db](https://github.com/yuhonas/free-exercise-db), searchable and filterable by equipment and muscle group (multi-select)
+- **Routine builder** — create named routines, add/reorder/remove exercises; exercise picker includes equipment + multi-select muscle group filters
 - **Active workout** — log sets with weight and reps, auto-filled from your last session for each exercise
 - **Rest timer** — automatic countdown after each logged set with haptic feedback on completion
 - **History calendar** — tap any date to see every set logged that day, grouped by exercise
@@ -51,6 +51,8 @@ src/
   store/
     workoutStore.ts     # Zustand: active session, sets, rest timer
     themeStore.ts       # Zustand: theme override (system/light/dark)
+  components/
+    ExercisePicker.tsx  # Shared modal picker: search + equipment + multi-select muscle filters
   theme.ts              # Color palettes + useColors() / useIsDark() hooks
   types/
     index.ts            # TypeScript interfaces for all domain models

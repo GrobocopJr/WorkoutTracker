@@ -7,21 +7,15 @@ import {
   TextInput,
   StyleSheet,
   Alert,
-  Modal,
   Vibration,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import {
-  logSet,
-  endSession,
-  getSetting,
-  getLastSet,
-  getExercises,
-} from '../../src/db/queries';
+import { logSet, endSession, getSetting, getLastSet } from '../../src/db/queries';
 import { useWorkoutStore } from '../../src/store/workoutStore';
+import { ExercisePicker } from '../../src/components/ExercisePicker';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { Exercise } from '../../src/types';
@@ -50,8 +44,6 @@ export default function ActiveWorkout() {
 
   const [units, setUnits] = useState('lbs');
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [pickerSearch, setPickerSearch] = useState('');
-  const [pickerExercises, setPickerExercises] = useState<Exercise[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTimerRunning = useRef(false);
 
@@ -94,7 +86,6 @@ export default function ActiveWorkout() {
 
   const handleLogSet = async (
     exerciseId: string,
-    _exerciseName: string,
     setIndex: number,
     weight: string,
     reps: string,
@@ -127,18 +118,6 @@ export default function ActiveWorkout() {
     ]);
   };
 
-  const openPicker = async () => {
-    const data = await getExercises(db, '', '', '');
-    setPickerExercises(data);
-    setPickerVisible(true);
-  };
-
-  const filterPicker = async (search: string) => {
-    setPickerSearch(search);
-    const data = await getExercises(db, search, '', '');
-    setPickerExercises(data);
-  };
-
   const handleAddExercise = async (exercise: Exercise) => {
     const last = await getLastSet(db, exercise.id);
     addExercise({
@@ -156,7 +135,6 @@ export default function ActiveWorkout() {
       ],
     });
     setPickerVisible(false);
-    setPickerSearch('');
   };
 
   const formatTime = (secs: number) => {
@@ -196,9 +174,7 @@ export default function ActiveWorkout() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {exercises.length === 0 && (
-          <Text style={styles.empty}>
-            Tap "Add Exercise" below to start logging.
-          </Text>
+          <Text style={styles.empty}>Tap "Add Exercise" below to start logging.</Text>
         )}
 
         {exercises.map((ex) => (
@@ -207,18 +183,13 @@ export default function ActiveWorkout() {
 
             <View style={styles.setHeader}>
               <Text style={styles.setHeaderCell}>Set</Text>
-              <Text style={[styles.setHeaderCell, { flex: 2 }]}>
-                Weight ({units})
-              </Text>
+              <Text style={[styles.setHeaderCell, { flex: 2 }]}>Weight ({units})</Text>
               <Text style={[styles.setHeaderCell, { flex: 1.5 }]}>Reps</Text>
               <Text style={[styles.setHeaderCell, { flex: 1 }]}></Text>
             </View>
 
             {ex.sets.map((set, idx) => (
-              <View
-                key={idx}
-                style={[styles.setRow, set.saved && styles.setRowSaved]}
-              >
+              <View key={idx} style={[styles.setRow, set.saved && styles.setRowSaved]}>
                 <Text style={styles.setNum}>{set.set_number}</Text>
                 <TextInput
                   style={[styles.setInput, { flex: 2 }]}
@@ -242,14 +213,7 @@ export default function ActiveWorkout() {
                   style={[styles.logBtn, set.saved && styles.logBtnSaved]}
                   onPress={() =>
                     !set.saved &&
-                    handleLogSet(
-                      ex.exercise_id,
-                      ex.exercise_name,
-                      idx,
-                      set.weight,
-                      set.reps,
-                      set.set_number
-                    )
+                    handleLogSet(ex.exercise_id, idx, set.weight, set.reps, set.set_number)
                   }
                   disabled={set.saved}
                 >
@@ -274,7 +238,7 @@ export default function ActiveWorkout() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.addExBtn} onPress={openPicker}>
+        <TouchableOpacity style={styles.addExBtn} onPress={() => setPickerVisible(true)}>
           <Ionicons name="add-circle-outline" size={20} color={c.accent} />
           <Text style={styles.addExText}>Add Exercise</Text>
         </TouchableOpacity>
@@ -283,41 +247,11 @@ export default function ActiveWorkout() {
         </TouchableOpacity>
       </View>
 
-      <Modal visible={pickerVisible} animationType="slide">
-        <View style={styles.pickerContainer}>
-          <View style={styles.pickerHeader}>
-            <Text style={styles.pickerTitle}>Add Exercise</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setPickerVisible(false);
-                setPickerSearch('');
-              }}
-            >
-              <Ionicons name="close" size={26} color={c.text} />
-            </TouchableOpacity>
-          </View>
-          <TextInput
-            style={styles.pickerSearch}
-            placeholder="Search..."
-            placeholderTextColor={c.placeholder}
-            value={pickerSearch}
-            onChangeText={filterPicker}
-            autoFocus
-          />
-          <ScrollView>
-            {pickerExercises.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.pickerItem}
-                onPress={() => handleAddExercise(item)}
-              >
-                <Text style={styles.pickerItemText}>{item.name}</Text>
-                <Text style={styles.pickerItemSub}>{item.equipment ?? ''}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
+      <ExercisePicker
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        onSelect={handleAddExercise}
+      />
     </View>
   );
 }
@@ -327,12 +261,7 @@ function makeStyles(c: Colors) {
     container: { flex: 1, backgroundColor: c.bg },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
     noSession: { fontSize: 16, color: c.muted, marginBottom: 16 },
-    backBtn: {
-      backgroundColor: c.accent,
-      borderRadius: 8,
-      padding: 12,
-      paddingHorizontal: 24,
-    },
+    backBtn: { backgroundColor: c.accent, borderRadius: 8, padding: 12, paddingHorizontal: 24 },
     backBtnText: { color: '#fff', fontWeight: '600' },
     timerBanner: {
       flexDirection: 'row',
@@ -357,26 +286,10 @@ function makeStyles(c: Colors) {
       shadowOpacity: 0.05,
       shadowRadius: 4,
     },
-    exerciseTitle: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: c.text,
-      marginBottom: 10,
-    },
-    setHeader: {
-      flexDirection: 'row',
-      marginBottom: 4,
-      paddingHorizontal: 2,
-    },
+    exerciseTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 10 },
+    setHeader: { flexDirection: 'row', marginBottom: 4, paddingHorizontal: 2 },
     setHeaderCell: { flex: 1, fontSize: 12, color: c.muted, fontWeight: '600' },
-    setRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 8,
-      padding: 6,
-      borderRadius: 8,
-    },
+    setRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, padding: 6, borderRadius: 8 },
     setRowSaved: { backgroundColor: c.successFaded },
     setNum: { width: 28, fontSize: 14, fontWeight: '600', color: c.muted },
     setInput: {
@@ -398,13 +311,7 @@ function makeStyles(c: Colors) {
       justifyContent: 'center',
     },
     logBtnSaved: { backgroundColor: c.success },
-    addSetBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginTop: 4,
-      paddingVertical: 6,
-    },
+    addSetBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, paddingVertical: 6 },
     addSetText: { color: c.accent, fontWeight: '600' },
     footer: {
       position: 'absolute',
@@ -439,34 +346,5 @@ function makeStyles(c: Colors) {
       justifyContent: 'center',
     },
     finishText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-    pickerContainer: { flex: 1, backgroundColor: c.bg },
-    pickerHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: 16,
-      backgroundColor: c.card,
-      borderBottomWidth: 1,
-      borderBottomColor: c.borderLight,
-    },
-    pickerTitle: { fontSize: 18, fontWeight: '700', color: c.text },
-    pickerSearch: {
-      margin: 12,
-      backgroundColor: c.inputBg,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: c.border,
-      padding: 10,
-      fontSize: 15,
-      color: c.text,
-    },
-    pickerItem: {
-      backgroundColor: c.card,
-      padding: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: c.divider,
-    },
-    pickerItemText: { fontSize: 15, color: c.text },
-    pickerItemSub: { fontSize: 12, color: c.muted, textTransform: 'capitalize' },
   });
 }

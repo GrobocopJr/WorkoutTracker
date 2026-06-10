@@ -14,7 +14,7 @@ export async function getExercises(
   db: SQLiteDatabase,
   search = '',
   equipment = '',
-  muscle = ''
+  muscles: string[] = []
 ): Promise<Exercise[]> {
   let query = 'SELECT * FROM exercises WHERE 1=1';
   const params: string[] = [];
@@ -27,9 +27,14 @@ export async function getExercises(
     query += ' AND equipment = ?';
     params.push(equipment);
   }
-  if (muscle) {
-    query += ' AND (primary_muscles LIKE ? OR secondary_muscles LIKE ?)';
-    params.push(`%${muscle}%`, `%${muscle}%`);
+  if (muscles.length > 0) {
+    const clauses = muscles
+      .map(() => '(primary_muscles LIKE ? OR secondary_muscles LIKE ?)')
+      .join(' OR ');
+    query += ` AND (${clauses})`;
+    for (const m of muscles) {
+      params.push(`%${m}%`, `%${m}%`);
+    }
   }
   query += ' ORDER BY name ASC LIMIT 200';
   return db.getAllAsync<Exercise>(query, params);

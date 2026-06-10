@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { getExercises, getEquipmentList, getMuscleList } from '../../src/db/queries';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
@@ -24,7 +25,7 @@ export default function ExercisesTab() {
 
   const [search, setSearch] = useState('');
   const [equipment, setEquipment] = useState('');
-  const [muscle, setMuscle] = useState('');
+  const [muscles, setMuscles] = useState<string[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [equipmentList, setEquipmentList] = useState<string[]>([]);
   const [muscleList, setMuscleList] = useState<string[]>([]);
@@ -42,20 +43,17 @@ export default function ExercisesTab() {
 
   const loadExercises = useCallback(async () => {
     setLoading(true);
-    const data = await getExercises(db, search, equipment, muscle);
+    const data = await getExercises(db, search, equipment, muscles);
     setExercises(data);
     setLoading(false);
-  }, [db, search, equipment, muscle]);
+  }, [db, search, equipment, muscles]);
 
   useFocusEffect(
     useCallback(() => { void loadExercises(); }, [loadExercises])
   );
 
-  const chipStyle = (active: boolean) => [styles.chip, active && styles.chipActive];
-  const chipTextStyle = (active: boolean) => [
-    styles.chipText,
-    active && styles.chipTextActive,
-  ];
+  const toggleMuscle = (m: string) =>
+    setMuscles((prev) => prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]);
 
   return (
     <View style={styles.container}>
@@ -73,39 +71,46 @@ export default function ExercisesTab() {
       <Text style={styles.filterLabel}>Equipment</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
         <TouchableOpacity
-          style={chipStyle(equipment === '')}
+          style={[styles.chip, equipment === '' && styles.chipActive]}
           onPress={() => setEquipment('')}
         >
-          <Text style={chipTextStyle(equipment === '')}>All</Text>
+          <Text style={[styles.chipText, equipment === '' && styles.chipTextActive]}>All</Text>
         </TouchableOpacity>
         {equipmentList.map((eq) => (
           <TouchableOpacity
             key={eq}
-            style={chipStyle(equipment === eq)}
+            style={[styles.chip, equipment === eq && styles.chipActive]}
             onPress={() => setEquipment(equipment === eq ? '' : eq)}
           >
-            <Text style={chipTextStyle(equipment === eq)}>{eq}</Text>
+            <Text style={[styles.chipText, equipment === eq && styles.chipTextActive]}>{eq}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      <Text style={styles.filterLabel}>Muscle</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-        <TouchableOpacity
-          style={chipStyle(muscle === '')}
-          onPress={() => setMuscle('')}
-        >
-          <Text style={chipTextStyle(muscle === '')}>All</Text>
-        </TouchableOpacity>
-        {muscleList.map((m) => (
-          <TouchableOpacity
-            key={m}
-            style={chipStyle(muscle === m)}
-            onPress={() => setMuscle(muscle === m ? '' : m)}
-          >
-            <Text style={chipTextStyle(muscle === m)}>{m}</Text>
+      <View style={styles.filterRow}>
+        <Text style={styles.filterLabel}>Muscle Group</Text>
+        {muscles.length > 0 && (
+          <TouchableOpacity onPress={() => setMuscles([])}>
+            <Text style={styles.clearBtn}>Clear {muscles.length}</Text>
           </TouchableOpacity>
-        ))}
+        )}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+        {muscleList.map((m) => {
+          const active = muscles.includes(m);
+          return (
+            <TouchableOpacity
+              key={m}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => toggleMuscle(m)}
+            >
+              {active && (
+                <Ionicons name="checkmark" size={11} color="#fff" style={styles.chipCheck} />
+              )}
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{m}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {loading ? (
@@ -150,20 +155,25 @@ function makeStyles(c: Colors) {
       marginBottom: 10,
       color: c.text,
     },
-    filterLabel: { fontSize: 13, fontWeight: '600', color: c.subtext, marginBottom: 4 },
+    filterLabel: { fontSize: 11, fontWeight: '700', color: c.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.6 },
+    filterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 4 },
+    clearBtn: { fontSize: 12, color: c.accent, fontWeight: '600' },
     chipRow: { flexDirection: 'row', marginBottom: 8 },
     chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
       borderRadius: 20,
       borderWidth: 1,
       borderColor: c.border,
-      paddingHorizontal: 12,
+      paddingHorizontal: 11,
       paddingVertical: 5,
       marginRight: 6,
       backgroundColor: c.card,
     },
     chipActive: { backgroundColor: c.accent, borderColor: c.accent },
-    chipText: { color: c.subtext, fontSize: 13 },
-    chipTextActive: { color: '#fff' },
+    chipCheck: { marginRight: 3 },
+    chipText: { color: c.subtext, fontSize: 13, textTransform: 'capitalize' },
+    chipTextActive: { color: '#fff', fontWeight: '600' },
     card: {
       backgroundColor: c.card,
       borderRadius: 10,
