@@ -12,7 +12,14 @@ import {
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Ionicons } from '@expo/vector-icons';
-import { getExercises, getEquipmentList, getMuscleList } from '../db/queries';
+import {
+  getExercises,
+  getEquipmentList,
+  getMuscleList,
+  getFavorites,
+  setFavorites,
+  orderByFavorites,
+} from '../db/queries';
 import { useColors } from '../theme';
 import type { Colors } from '../theme';
 import type { Exercise } from '../types';
@@ -37,6 +44,37 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
   const [loading, setLoading] = useState(false);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
 
+  // Type-to-filter the equipment / muscle chips
+  const [equipFilter, setEquipFilter] = useState('');
+  const [muscleFilter, setMuscleFilter] = useState('');
+  const [showEquipSearch, setShowEquipSearch] = useState(false);
+  const [showMuscleSearch, setShowMuscleSearch] = useState(false);
+
+  // Favorited chips (long-press to toggle) float to the front of each list
+  const [favEquip, setFavEquip] = useState<string[]>([]);
+  const [favMuscle, setFavMuscle] = useState<string[]>([]);
+
+  const shownEquip = orderByFavorites(equipmentList, favEquip).filter((e) =>
+    e.toLowerCase().includes(equipFilter.trim().toLowerCase())
+  );
+  const shownMuscles = orderByFavorites(muscleList, favMuscle).filter((m) =>
+    m.toLowerCase().includes(muscleFilter.trim().toLowerCase())
+  );
+
+  const toggleEquipFav = (eq: string) =>
+    setFavEquip((prev) => {
+      const next = prev.includes(eq) ? prev.filter((x) => x !== eq) : [...prev, eq];
+      void setFavorites(db, 'fav_equipment', next);
+      return next;
+    });
+
+  const toggleMuscleFav = (m: string) =>
+    setFavMuscle((prev) => {
+      const next = prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m];
+      void setFavorites(db, 'fav_muscle', next);
+      return next;
+    });
+
   // Load filter option lists once on first open
   useEffect(() => {
     if (visible && !filtersLoaded) {
@@ -47,6 +85,13 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
       });
     }
   }, [visible, db, filtersLoaded]);
+
+  // Refresh favorites each time the picker opens
+  useEffect(() => {
+    if (!visible) return;
+    getFavorites(db, 'fav_equipment').then(setFavEquip);
+    getFavorites(db, 'fav_muscle').then(setFavMuscle);
+  }, [visible, db]);
 
   // Re-query exercises whenever any filter changes
   useEffect(() => {
@@ -66,6 +111,10 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
     setSearch('');
     setEquipment('');
     setMuscles([]);
+    setEquipFilter('');
+    setMuscleFilter('');
+    setShowEquipSearch(false);
+    setShowMuscleSearch(false);
     onClose();
   };
 
@@ -96,63 +145,129 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
         />
 
         {/* Equipment filter — single select */}
-        <Text style={styles.filterLabel}>Equipment</Text>
+        <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>Equipment</Text>
+          <TouchableOpacity
+            onPress={() => { setShowEquipSearch((v) => !v); setEquipFilter(''); }}
+            hitSlop={8}
+          >
+            <Ionicons name={showEquipSearch ? 'close' : 'search'} size={16} color={c.accent} />
+          </TouchableOpacity>
+        </View>
+        {showEquipSearch && (
+          <TextInput
+            style={styles.filterSearch}
+            value={equipFilter}
+            onChangeText={setEquipFilter}
+            placeholder="Filter equipment…"
+            placeholderTextColor={c.placeholder}
+            autoFocus
+            autoCapitalize="none"
+          />
+        )}
         <View style={styles.chipRowWrap}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chipRowContent}
           >
-            <TouchableOpacity
-              style={[styles.chip, equipment === '' && styles.chipActive]}
-              onPress={() => setEquipment('')}
-            >
-              <Text style={[styles.chipText, equipment === '' && styles.chipTextActive]}>All</Text>
-            </TouchableOpacity>
-            {equipmentList.map((eq) => (
+            {equipFilter.trim() === '' && (
               <TouchableOpacity
-                key={eq}
-                style={[styles.chip, equipment === eq && styles.chipActive]}
-                onPress={() => setEquipment((prev) => prev === eq ? '' : eq)}
+                style={[styles.chip, equipment === '' && styles.chipActive]}
+                onPress={() => setEquipment('')}
               >
-                <Text style={[styles.chipText, equipment === eq && styles.chipTextActive]}>
-                  {eq}
-                </Text>
+                <Text style={[styles.chipText, equipment === '' && styles.chipTextActive]}>All</Text>
               </TouchableOpacity>
-            ))}
+            )}
+            {shownEquip.map((eq) => {
+              const fav = favEquip.includes(eq);
+              const active = equipment === eq;
+              return (
+                <TouchableOpacity
+                  key={eq}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setEquipment((prev) => prev === eq ? '' : eq)}
+                  onLongPress={() => toggleEquipFav(eq)}
+                  delayLongPress={300}
+                >
+                  {fav && (
+                    <Ionicons
+                      name="star"
+                      size={10}
+                      color={active ? '#fff' : c.accent}
+                      style={styles.chipStar}
+                    />
+                  )}
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {eq}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
         {/* Muscle filter — multi-select */}
         <View style={styles.filterRow}>
           <Text style={styles.filterLabel}>Muscle Group</Text>
-          {muscles.length > 0 && (
-            <TouchableOpacity onPress={() => setMuscles([])}>
-              <Text style={styles.clearBtn}>Clear {muscles.length}</Text>
+          <View style={styles.filterRowRight}>
+            {muscles.length > 0 && (
+              <TouchableOpacity onPress={() => setMuscles([])}>
+                <Text style={styles.clearBtn}>Clear {muscles.length}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => { setShowMuscleSearch((v) => !v); setMuscleFilter(''); }}
+              hitSlop={8}
+            >
+              <Ionicons name={showMuscleSearch ? 'close' : 'search'} size={16} color={c.accent} />
             </TouchableOpacity>
-          )}
+          </View>
         </View>
+        {showMuscleSearch && (
+          <TextInput
+            style={styles.filterSearch}
+            value={muscleFilter}
+            onChangeText={setMuscleFilter}
+            placeholder="Filter muscles…"
+            placeholderTextColor={c.placeholder}
+            autoFocus
+            autoCapitalize="none"
+          />
+        )}
         <View style={styles.chipRowWrap}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chipRowContent}
           >
-            {muscleList.map((m) => {
+            {shownMuscles.map((m) => {
               const active = muscles.includes(m);
+              const fav = favMuscle.includes(m);
               return (
                 <TouchableOpacity
                   key={m}
                   style={[styles.chip, active && styles.chipActive]}
                   onPress={() => toggleMuscle(m)}
+                  onLongPress={() => toggleMuscleFav(m)}
+                  delayLongPress={300}
                 >
-                  {active && (
+                  {active ? (
                     <Ionicons
                       name="checkmark"
                       size={11}
                       color="#fff"
                       style={styles.chipCheck}
                     />
+                  ) : (
+                    fav && (
+                      <Ionicons
+                        name="star"
+                        size={10}
+                        color={c.accent}
+                        style={styles.chipStar}
+                      />
+                    )
                   )}
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>{m}</Text>
                 </TouchableOpacity>
@@ -234,6 +349,19 @@ function makeStyles(c: Colors) {
       alignItems: 'center',
       paddingRight: 12,
     },
+    filterRowRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    filterSearch: {
+      marginHorizontal: 12,
+      marginBottom: 6,
+      backgroundColor: c.inputBg,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      fontSize: 14,
+      color: c.text,
+    },
     clearBtn: { fontSize: 12, color: c.accent, fontWeight: '600' },
     chipRowWrap: { height: 32, marginBottom: 8 },
     chipRowContent: { paddingHorizontal: 12, gap: 6, alignItems: 'center' },
@@ -249,6 +377,7 @@ function makeStyles(c: Colors) {
     },
     chipActive: { backgroundColor: c.accent, borderColor: c.accent },
     chipCheck: { marginRight: 3 },
+    chipStar: { marginRight: 3 },
     chipText: { color: c.subtext, fontSize: 13, lineHeight: 18, textTransform: 'capitalize' },
     chipTextActive: { color: '#fff', fontWeight: '600' },
     results: { flex: 1 },

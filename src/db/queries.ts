@@ -391,6 +391,40 @@ export async function setExerciseNote(
   );
 }
 
+// ── Favorites (equipment / muscle chips) ───────────────────────────────────
+
+export type FavoriteKey = 'fav_equipment' | 'fav_muscle';
+
+export async function getFavorites(
+  db: SQLiteDatabase,
+  key: FavoriteKey
+): Promise<string[]> {
+  const raw = await getSetting(db, key);
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? (arr as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function setFavorites(
+  db: SQLiteDatabase,
+  key: FavoriteKey,
+  values: string[]
+): Promise<void> {
+  await setSetting(db, key, JSON.stringify(values));
+}
+
+// Favorited items first (preserving the input order within each group).
+export function orderByFavorites(list: string[], favs: string[]): string[] {
+  const favSet = new Set(favs);
+  const favored = list.filter((x) => favSet.has(x));
+  const rest = list.filter((x) => !favSet.has(x));
+  return [...favored, ...rest];
+}
+
 // ── Settings ───────────────────────────────────────────────────────────────
 
 export async function getSetting(
