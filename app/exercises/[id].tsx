@@ -5,10 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { getExerciseById, getExerciseStat } from '../../src/db/queries';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { getExerciseById, getExerciseStat, deleteExercise } from '../../src/db/queries';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { Exercise, ExerciseStat } from '../../src/types';
@@ -17,6 +20,7 @@ export default function ExerciseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const db = useSQLiteContext();
   const navigation = useNavigation();
+  const router = useRouter();
   const c = useColors();
   const styles = useMemo(() => makeStyles(c), [c]);
 
@@ -55,6 +59,24 @@ export default function ExerciseDetail() {
   const primaryMuscles: string[] = safeJson(exercise.primary_muscles);
   const secondaryMuscles: string[] = safeJson(exercise.secondary_muscles);
   const instructions: string[] = safeJson(exercise.instructions);
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Exercise',
+      `Delete "${exercise.name}"? This removes it from your library, any routines, and its logged history. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteExercise(db, exercise.id);
+            router.back();
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -118,6 +140,13 @@ export default function ExerciseDetail() {
           ))}
         </View>
       )}
+
+      {exercise.is_custom === 1 && (
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+          <Ionicons name="trash-outline" size={18} color={c.danger} />
+          <Text style={styles.deleteText}>Delete Exercise</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -164,5 +193,17 @@ function makeStyles(c: Colors) {
     step: { flexDirection: 'row', marginBottom: 8, gap: 8 },
     stepNum: { color: c.accent, fontWeight: '700', minWidth: 20 },
     stepText: { flex: 1, color: c.subtext, lineHeight: 20 },
+    deleteBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 10,
+      padding: 12,
+      marginTop: 8,
+    },
+    deleteText: { color: c.danger, fontWeight: '700', fontSize: 15 },
   });
 }

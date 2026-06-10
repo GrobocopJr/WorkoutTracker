@@ -20,6 +20,7 @@ import {
   setFavorites,
   orderByFavorites,
 } from '../db/queries';
+import { ExerciseEditor } from './ExerciseEditor';
 import { useColors } from '../theme';
 import type { Colors } from '../theme';
 import type { Exercise } from '../types';
@@ -53,6 +54,8 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
   // Favorited chips (long-press to toggle) float to the front of each list
   const [favEquip, setFavEquip] = useState<string[]>([]);
   const [favMuscle, setFavMuscle] = useState<string[]>([]);
+
+  const [editorVisible, setEditorVisible] = useState(false);
 
   const shownEquip = orderByFavorites(equipmentList, favEquip).filter((e) =>
     e.toLowerCase().includes(equipFilter.trim().toLowerCase())
@@ -121,6 +124,11 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
   const toggleMuscle = (m: string) =>
     setMuscles((prev) => prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]);
 
+  const handleCreated = (exercise: Exercise) => {
+    setEditorVisible(false);
+    onSelect(exercise); // add the new exercise straight into the workout
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View style={styles.container}>
@@ -128,9 +136,15 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Add Exercise</Text>
-          <TouchableOpacity onPress={handleClose} hitSlop={12}>
-            <Ionicons name="close" size={26} color={c.text} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => setEditorVisible(true)} hitSlop={8} style={styles.newBtn}>
+              <Ionicons name="add" size={18} color={c.accent} />
+              <Text style={styles.newBtnText}>New</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleClose} hitSlop={12}>
+              <Ionicons name="close" size={26} color={c.text} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search */}
@@ -304,6 +318,13 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
             />
           )}
         </View>
+
+        <ExerciseEditor
+          visible={editorVisible}
+          initialName={search}
+          onClose={() => setEditorVisible(false)}
+          onCreated={handleCreated}
+        />
       </View>
     </Modal>
   );
@@ -323,6 +344,9 @@ function makeStyles(c: Colors) {
       borderBottomColor: c.borderLight,
     },
     title: { fontSize: 18, fontWeight: '700', color: c.text },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    newBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    newBtnText: { color: c.accent, fontWeight: '700', fontSize: 14 },
     search: {
       margin: 12,
       marginBottom: 6,

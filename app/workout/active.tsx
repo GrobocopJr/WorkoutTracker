@@ -6,6 +6,7 @@ import {
   TextInput,
   StyleSheet,
   Alert,
+  Modal,
   Vibration,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -27,6 +28,9 @@ import {
   getExerciseNote,
   setExerciseNote,
   syncRoutineExercises,
+  getExerciseById,
+  createCustomExercise,
+  moveSessionSets,
 } from '../../src/db/queries';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { ExercisePicker } from '../../src/components/ExercisePicker';
@@ -56,6 +60,8 @@ export default function ActiveWorkout() {
     addExercise,
     removeExercise,
     reorderExercises,
+    renameExercise,
+    replaceExerciseId,
     endSession: clearSession,
   } = useWorkoutStore();
 
@@ -65,6 +71,8 @@ export default function ActiveWorkout() {
   const [units, setUnits] = useState('lbs');
   const [pickerVisible, setPickerVisible] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renameText, setRenameText] = useState('');
 
   const toggleCollapse = useCallback((exerciseId: string) => {
     setCollapsed((prev) => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
@@ -230,6 +238,47 @@ export default function ActiveWorkout() {
     setPickerVisible(false);
   };
 
+  const openRename = (exerciseId: string, currentName: string) => {
+    setRenameTarget({ id: exerciseId, name: currentName });
+    setRenameText(currentName);
+  };
+
+  const handleSaveRename = () => {
+    if (!renameTarget) return;
+    const oldId = renameTarget.id;
+    const newName = renameText.trim();
+    setRenameTarget(null);
+    if (!newName || newName === renameTarget.name) return;
+    renameExercise(oldId, newName);
+    // Offer to persist the renamed exercise to the library for future workouts.
+    Alert.alert(
+      'Save Exercise',
+      `Add "${newName}" to your exercise library so you can use it again later?`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Add', onPress: () => savePermanently(oldId, newName) },
+      ]
+    );
+  };
+
+  const savePermanently = async (oldId: string, newName: string) => {
+    const orig = await getExerciseById(db, oldId);
+    const custom = await createCustomExercise(db, {
+      name: newName,
+      equipment: orig?.equipment ?? null,
+      category: orig?.category ?? null,
+      primaryMuscles: parseJsonArray(orig?.primary_muscles),
+      secondaryMuscles: parseJsonArray(orig?.secondary_muscles),
+    });
+    // Move this session's already-logged sets onto the new exercise.
+    if (sessionId) await moveSessionSets(db, sessionId, oldId, custom.id);
+    const note = await getExerciseNote(db, oldId);
+    if (note) await setExerciseNote(db, custom.id, note);
+    // Point the active session at the new exercise going forward.
+    replaceExerciseId(oldId, custom.id);
+    void syncRoutine(useWorkoutStore.getState().exercises);
+  };
+
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -283,6 +332,7 @@ export default function ActiveWorkout() {
               c={c}
               collapsed={!!collapsed[item.exercise_id]}
               onToggleCollapse={toggleCollapse}
+              onRename={openRename}
               onLog={handleLogSet}
               onAddSet={handleAddSet}
               onRemoveSet={handleRemoveSet}
@@ -307,8 +357,48 @@ export default function ActiveWorkout() {
         onClose={() => setPickerVisible(false)}
         onSelect={handleAddExercise}
       />
+
+      <Modal
+        visible={renameTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenameTarget(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Rename Exercise</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={renameText}
+              onChangeText={setRenameText}
+              placeholder="Exercise name"
+              placeholderTextColor={c.placeholder}
+              autoFocus
+              onSubmitEditing={handleSaveRename}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setRenameTarget(null)} style={styles.modalBtn}>
+                <Text style={styles.modalCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveRename} style={[styles.modalBtn, styles.modalSaveBtn]}>
+                <Text style={styles.modalSave}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
+}
+
+function parseJsonArray(text: string | null | undefined): string[] {
+  if (!text) return [];
+  try {
+    const arr = JSON.parse(text);
+    return Array.isArray(arr) ? (arr as string[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 interface ExerciseCardProps {
@@ -318,6 +408,7 @@ interface ExerciseCardProps {
   c: Colors;
   collapsed: boolean;
   onToggleCollapse: (exerciseId: string) => void;
+  onRename: (exerciseId: string, currentName: string) => void;
   onLog: (
     exerciseId: string,
     setIndex: number,
@@ -337,6 +428,7 @@ function ExerciseCard({
   c,
   collapsed,
   onToggleCollapse,
+  onRename,
   onLog,
   onAddSet,
   onRemoveSet,
@@ -379,6 +471,8 @@ function ExerciseCard({
           style={styles.titleArea}
           activeOpacity={0.7}
           onPress={handleTitlePress}
+          onLongPress={() => onRename(ex.exercise_id, ex.exercise_name)}
+          delayLongPress={350}
         >
           <Text style={styles.exerciseTitle} numberOfLines={1}>
             {ex.exercise_name}
@@ -636,5 +730,27 @@ function makeStyles(c: Colors) {
       justifyContent: 'center',
     },
     finishText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    modalCard: { backgroundColor: c.card, borderRadius: 12, padding: 18 },
+    modalTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 12 },
+    modalInput: {
+      backgroundColor: c.inputBg,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 10,
+      fontSize: 15,
+      color: c.text,
+    },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
+    modalBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 },
+    modalSaveBtn: { backgroundColor: c.accent },
+    modalCancel: { color: c.muted, fontWeight: '600' },
+    modalSave: { color: '#fff', fontWeight: '700' },
   });
 }

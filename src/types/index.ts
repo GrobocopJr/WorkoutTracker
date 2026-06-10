@@ -9,6 +9,7 @@ export interface Exercise {
   primary_muscles: string; // JSON array as text
   secondary_muscles: string; // JSON array as text
   instructions: string; // JSON array as text
+  is_custom: number; // 1 for user-created exercises, 0 for app-seeded
 }
 
 export interface Routine {

@@ -20,6 +20,7 @@ import {
   setFavorites,
   orderByFavorites,
 } from '../../src/db/queries';
+import { ExerciseEditor } from '../../src/components/ExerciseEditor';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { Exercise } from '../../src/types';
@@ -43,6 +44,7 @@ export default function ExercisesTab() {
   const [muscleFilter, setMuscleFilter] = useState('');
   const [showEquipSearch, setShowEquipSearch] = useState(false);
   const [showMuscleSearch, setShowMuscleSearch] = useState(false);
+  const [editorVisible, setEditorVisible] = useState(false);
 
   // Favorited chips (long-press to toggle) float to the front of each list
   const [favEquip, setFavEquip] = useState<string[]>([]);
@@ -102,16 +104,22 @@ export default function ExercisesTab() {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search exercises..."
-        placeholderTextColor={c.placeholder}
-        value={search}
-        onChangeText={setSearch}
-        returnKeyType="search"
-        onSubmitEditing={loadExercises}
-        clearButtonMode="while-editing"
-      />
+      <View style={styles.searchRow}>
+        <TextInput
+          style={[styles.searchInput, styles.searchInputFlex]}
+          placeholder="Search exercises..."
+          placeholderTextColor={c.placeholder}
+          value={search}
+          onChangeText={setSearch}
+          returnKeyType="search"
+          onSubmitEditing={loadExercises}
+          clearButtonMode="while-editing"
+        />
+        <TouchableOpacity style={styles.newBtn} onPress={() => setEditorVisible(true)}>
+          <Ionicons name="add" size={20} color="#fff" />
+          <Text style={styles.newBtnText}>New</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.filterRow}>
         <Text style={styles.filterLabel}>Equipment</Text>
@@ -256,6 +264,17 @@ export default function ExercisesTab() {
           />
         )}
       </View>
+
+      <ExerciseEditor
+        visible={editorVisible}
+        onClose={() => setEditorVisible(false)}
+        onCreated={(ex) => {
+          setEditorVisible(false);
+          void loadFilters();
+          void loadExercises();
+          router.push(`/exercises/${ex.id}`);
+        }}
+      />
     </View>
   );
 }
@@ -263,6 +282,7 @@ export default function ExercisesTab() {
 function makeStyles(c: Colors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg, padding: 12 },
+    searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
     searchInput: {
       backgroundColor: c.inputBg,
       borderRadius: 10,
@@ -273,6 +293,17 @@ function makeStyles(c: Colors) {
       marginBottom: 10,
       color: c.text,
     },
+    searchInputFlex: { flex: 1, marginBottom: 0 },
+    newBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      backgroundColor: c.accent,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    newBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
     filterLabel: { fontSize: 11, fontWeight: '700', color: c.muted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.6 },
     filterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 4 },
     filterRowRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },

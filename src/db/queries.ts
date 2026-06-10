@@ -48,6 +48,71 @@ export async function getExerciseById(
   return db.getFirstAsync<Exercise>('SELECT * FROM exercises WHERE id = ?', [id]);
 }
 
+export async function createCustomExercise(
+  db: SQLiteDatabase,
+  p: {
+    name: string;
+    equipment: string | null;
+    category: string | null;
+    primaryMuscles: string[];
+    secondaryMuscles: string[];
+  }
+): Promise<Exercise> {
+  const id = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const primary = JSON.stringify(p.primaryMuscles);
+  const secondary = JSON.stringify(p.secondaryMuscles);
+  await db.runAsync(
+    `INSERT INTO exercises
+       (id, name, equipment, category, force, level, mechanic, primary_muscles, secondary_muscles, instructions, is_custom)
+     VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, '[]', 1)`,
+    [id, p.name, p.equipment, p.category, primary, secondary]
+  );
+  return {
+    id,
+    name: p.name,
+    equipment: p.equipment,
+    category: p.category,
+    force: null,
+    level: null,
+    mechanic: null,
+    primary_muscles: primary,
+    secondary_muscles: secondary,
+    instructions: '[]',
+    is_custom: 1,
+  };
+}
+
+// Deletes a user-created exercise only (app-seeded exercises are protected).
+// Returns false if the exercise doesn't exist or isn't custom.
+export async function deleteExercise(
+  db: SQLiteDatabase,
+  id: string
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ is_custom: number }>(
+    'SELECT is_custom FROM exercises WHERE id = ?',
+    [id]
+  );
+  if (!row || row.is_custom !== 1) return false;
+  await db.runAsync('DELETE FROM routine_exercises WHERE exercise_id = ?', [id]);
+  await db.runAsync('DELETE FROM sets WHERE exercise_id = ?', [id]);
+  await db.runAsync('DELETE FROM exercise_notes WHERE exercise_id = ?', [id]);
+  await db.runAsync('DELETE FROM exercises WHERE id = ? AND is_custom = 1', [id]);
+  return true;
+}
+
+// Re-point a single session's logged sets from one exercise to another.
+export async function moveSessionSets(
+  db: SQLiteDatabase,
+  sessionId: number,
+  fromExerciseId: string,
+  toExerciseId: string
+): Promise<void> {
+  await db.runAsync(
+    'UPDATE sets SET exercise_id = ? WHERE session_id = ? AND exercise_id = ?',
+    [toExerciseId, sessionId, fromExerciseId]
+  );
+}
+
 export async function getEquipmentList(db: SQLiteDatabase): Promise<string[]> {
   const rows = await db.getAllAsync<{ equipment: string }>(
     'SELECT DISTINCT equipment FROM exercises WHERE equipment IS NOT NULL ORDER BY equipment'

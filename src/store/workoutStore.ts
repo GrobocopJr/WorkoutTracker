@@ -18,6 +18,8 @@ interface WorkoutState {
   addExercise: (exercise: ActiveExercise) => void;
   removeExercise: (exerciseId: string) => void;
   reorderExercises: (exercises: ActiveExercise[]) => void;
+  renameExercise: (exerciseId: string, name: string) => void;
+  replaceExerciseId: (oldId: string, newId: string) => void;
   updateSet: (
     exerciseId: string,
     setIndex: number,
@@ -57,6 +59,32 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     })),
 
   reorderExercises: (exercises) => set({ exercises }),
+
+  renameExercise: (exerciseId, name) =>
+    set((state) => ({
+      exercises: state.exercises.map((ex) =>
+        ex.exercise_id !== exerciseId
+          ? ex
+          : {
+              ...ex,
+              exercise_name: name,
+              sets: ex.sets.map((s) => ({ ...s, exercise_name: name })),
+            }
+      ),
+    })),
+
+  replaceExerciseId: (oldId, newId) =>
+    set((state) => ({
+      exercises: state.exercises.map((ex) =>
+        ex.exercise_id !== oldId
+          ? ex
+          : {
+              ...ex,
+              exercise_id: newId,
+              sets: ex.sets.map((s) => ({ ...s, exercise_id: newId })),
+            }
+      ),
+    })),
 
   updateSet: (exerciseId, setIndex, field, value) =>
     set((state) => ({

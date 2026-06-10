@@ -39,6 +39,13 @@ async function migrateDb(db: SQLiteDatabase) {
   if (!sessionCols.some((col) => col.name === 'name')) {
     await db.execAsync('ALTER TABLE sessions ADD COLUMN name TEXT');
   }
+
+  const exerciseCols = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(exercises)'
+  );
+  if (!exerciseCols.some((col) => col.name === 'is_custom')) {
+    await db.execAsync('ALTER TABLE exercises ADD COLUMN is_custom INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 function ThemeLoader() {
