@@ -371,6 +371,18 @@ export async function getLastSet(
   );
 }
 
+// Best Epley 1RM ever logged for an exercise across all sessions.
+export async function getBest1RM(
+  db: SQLiteDatabase,
+  exerciseId: string
+): Promise<number | null> {
+  const row = await db.getFirstAsync<{ best: number | null }>(
+    'SELECT MAX(weight * (1 + reps / 30.0)) AS best FROM sets WHERE exercise_id = ?',
+    [exerciseId]
+  );
+  return row?.best ?? null;
+}
+
 export async function getExerciseStat(
   db: SQLiteDatabase,
   exerciseId: string

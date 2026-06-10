@@ -13,7 +13,7 @@ A personal, offline-first workout tracking app for Android built with React Nati
 - **Exercise notes** — jot a note on any exercise (e.g. grip, cues, settings); notes are tied to the exercise and reappear every time it comes up in a future workout
 - **Rest timer** — automatic countdown after each logged set with haptic feedback on completion
 - **History calendar** — tap any date to see every set logged that day, grouped by exercise; rename or delete past workouts, with start/end times shown in Chicago time (America/Chicago, DST-aware)
-- **Personal records** — per-exercise stats including last weight used, best weight, and estimated 1RM via the Epley formula
+- **Personal records** — per-exercise stats including last weight used, best weight, and estimated 1RM via the Epley formula; when a logged set beats your all-time best 1RM a 🏆 "New PR!" badge appears inline on that set row with a gold border, amber log button, and stronger haptic feedback
 - **Dark mode** — System / Light / Dark toggle in Settings, persisted across launches
 - **Weight units** — lbs or kg, app-wide
 

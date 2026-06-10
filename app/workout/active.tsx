@@ -24,6 +24,7 @@ import {
   endSession,
   getSetting,
   getLastSet,
+  getBest1RM,
   deleteSet,
   getExerciseNote,
   setExerciseNote,
@@ -73,6 +74,8 @@ export default function ActiveWorkout() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
   const [renameText, setRenameText] = useState('');
+  // Tracks which set indices are personal records: key = `${exerciseId}:${setIndex}`
+  const [prKeys, setPrKeys] = useState<Set<string>>(new Set());
 
   const toggleCollapse = useCallback((exerciseId: string) => {
     setCollapsed((prev) => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
@@ -144,9 +147,19 @@ export default function ActiveWorkout() {
       Alert.alert('Invalid input', 'Please enter valid weight and reps.');
       return;
     }
+    // Capture the previous best 1RM before this set is written to DB.
+    const prevBest = await getBest1RM(db, exerciseId);
     const newId = await logSet(db, sessionId, exerciseId, setNumber, w, r);
     markSetSaved(exerciseId, setIndex, newId);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Epley 1RM: weight × (1 + reps / 30)
+    const new1RM = w * (1 + r / 30);
+    if (new1RM > (prevBest ?? 0)) {
+      setPrKeys((prev) => new Set(prev).add(`${exerciseId}:${setIndex}`));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     startTimer(timerDefault);
   };
 
@@ -331,6 +344,7 @@ export default function ActiveWorkout() {
               styles={styles}
               c={c}
               collapsed={!!collapsed[item.exercise_id]}
+              prKeys={prKeys}
               onToggleCollapse={toggleCollapse}
               onRename={openRename}
               onLog={handleLogSet}
@@ -407,6 +421,7 @@ interface ExerciseCardProps {
   styles: Styles;
   c: Colors;
   collapsed: boolean;
+  prKeys: Set<string>;
   onToggleCollapse: (exerciseId: string) => void;
   onRename: (exerciseId: string, currentName: string) => void;
   onLog: (
@@ -427,6 +442,7 @@ function ExerciseCard({
   styles,
   c,
   collapsed,
+  prKeys,
   onToggleCollapse,
   onRename,
   onLog,
@@ -507,6 +523,7 @@ function ExerciseCard({
           styles={styles}
           c={c}
           db={db}
+          prKeys={prKeys}
           updateSet={updateSet}
           updateNote={updateNote}
           onLog={onLog}
@@ -524,6 +541,7 @@ interface ExerciseBodyProps {
   styles: Styles;
   c: Colors;
   db: ReturnType<typeof useSQLiteContext>;
+  prKeys: Set<string>;
   updateSet: (exerciseId: string, setIndex: number, field: 'weight' | 'reps', value: string) => void;
   updateNote: (exerciseId: string, note: string) => void;
   onLog: (
@@ -543,6 +561,7 @@ function ExerciseBody({
   styles,
   c,
   db,
+  prKeys,
   updateSet,
   updateNote,
   onLog,
@@ -568,43 +587,54 @@ function ExerciseBody({
         <Text style={[styles.setHeaderCell, { flex: 1 }]}></Text>
       </View>
 
-      {ex.sets.map((set, idx) => (
-        <View key={idx} style={[styles.setRow, set.saved && styles.setRowSaved]}>
-          <Text style={styles.setNum}>{set.set_number}</Text>
-          <TextInput
-            style={[styles.setInput, { flex: 2 }]}
-            value={set.weight}
-            onChangeText={(v) => updateSet(ex.exercise_id, idx, 'weight', v)}
-            keyboardType="decimal-pad"
-            placeholder="0"
-            placeholderTextColor={c.placeholder}
-            editable={!set.saved}
-          />
-          <TextInput
-            style={[styles.setInput, { flex: 1.5 }]}
-            value={set.reps}
-            onChangeText={(v) => updateSet(ex.exercise_id, idx, 'reps', v)}
-            keyboardType="number-pad"
-            placeholder="0"
-            placeholderTextColor={c.placeholder}
-            editable={!set.saved}
-          />
-          <TouchableOpacity
-            style={[styles.logBtn, set.saved && styles.logBtnSaved]}
-            onPress={() =>
-              !set.saved &&
-              onLog(ex.exercise_id, idx, set.weight, set.reps, set.set_number)
-            }
-            disabled={set.saved}
-          >
-            <Ionicons
-              name={set.saved ? 'checkmark' : 'checkmark-outline'}
-              size={18}
-              color="#fff"
-            />
-          </TouchableOpacity>
-        </View>
-      ))}
+      {ex.sets.map((set, idx) => {
+        const isPR = prKeys.has(`${ex.exercise_id}:${idx}`);
+        return (
+          <View key={idx}>
+            <View style={[styles.setRow, set.saved && styles.setRowSaved, isPR && styles.setRowPR]}>
+              <Text style={styles.setNum}>{set.set_number}</Text>
+              <TextInput
+                style={[styles.setInput, { flex: 2 }]}
+                value={set.weight}
+                onChangeText={(v) => updateSet(ex.exercise_id, idx, 'weight', v)}
+                keyboardType="decimal-pad"
+                placeholder="0"
+                placeholderTextColor={c.placeholder}
+                editable={!set.saved}
+              />
+              <TextInput
+                style={[styles.setInput, { flex: 1.5 }]}
+                value={set.reps}
+                onChangeText={(v) => updateSet(ex.exercise_id, idx, 'reps', v)}
+                keyboardType="number-pad"
+                placeholder="0"
+                placeholderTextColor={c.placeholder}
+                editable={!set.saved}
+              />
+              <TouchableOpacity
+                style={[styles.logBtn, set.saved && styles.logBtnSaved, isPR && styles.logBtnPR]}
+                onPress={() =>
+                  !set.saved &&
+                  onLog(ex.exercise_id, idx, set.weight, set.reps, set.set_number)
+                }
+                disabled={set.saved}
+              >
+                <Ionicons
+                  name={set.saved ? 'checkmark' : 'checkmark-outline'}
+                  size={18}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            </View>
+            {isPR && (
+              <View style={styles.prBadge}>
+                <Ionicons name="trophy" size={12} color="#F59E0B" />
+                <Text style={styles.prText}>New PR!</Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
 
       <View style={styles.setActions}>
         <TouchableOpacity style={styles.addSetBtn} onPress={() => onAddSet(ex)}>
@@ -671,8 +701,9 @@ function makeStyles(c: Colors) {
     },
     setHeader: { flexDirection: 'row', marginBottom: 4, paddingHorizontal: 2 },
     setHeaderCell: { flex: 1, fontSize: 12, color: c.muted, fontWeight: '600' },
-    setRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, padding: 6, borderRadius: 8 },
+    setRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, padding: 6, borderRadius: 8 },
     setRowSaved: { backgroundColor: c.successFaded },
+    setRowPR: { borderWidth: 1, borderColor: '#F59E0B' },
     setNum: { width: 28, fontSize: 14, fontWeight: '600', color: c.muted },
     setInput: {
       borderWidth: 1,
@@ -693,6 +724,15 @@ function makeStyles(c: Colors) {
       justifyContent: 'center',
     },
     logBtnSaved: { backgroundColor: c.success },
+    logBtnPR: { backgroundColor: '#D97706' },
+    prBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginLeft: 34,
+      marginBottom: 8,
+    },
+    prText: { color: '#F59E0B', fontSize: 12, fontWeight: '700' },
     setActions: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 4 },
     addSetBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6 },
     addSetText: { color: c.accent, fontWeight: '600' },
