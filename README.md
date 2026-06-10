@@ -6,7 +6,8 @@ A personal, offline-first workout tracking app for Android built with React Nati
 
 - **Exercise library** — 800+ exercises from [free-exercise-db](https://github.com/yuhonas/free-exercise-db), searchable and filterable by equipment and muscle group (multi-select)
 - **Routine builder** — create named routines, add/reorder/remove exercises; exercise picker includes equipment + multi-select muscle group filters
-- **Active workout** — log sets with weight and reps, auto-filled from your last session for each exercise; add or remove sets on the fly, or remove an exercise entirely (removing a logged set/exercise deletes it from history)
+- **Active workout** — log sets with weight and reps, auto-filled from your last session for each exercise; add or remove sets on the fly, remove an exercise entirely, or drag the ☰ handle to reorder exercises (removing a logged set/exercise deletes it from history)
+- **Smart routines** — exercises added, removed, or reordered during a workout sync back to the routine, and each exercise remembers how many sets it had so the next session pre-fills them
 - **Resumable sessions** — the in-progress workout is saved to SQLite as you go, so it survives app reloads and restarts; a "Resume Current Workout" button on the home tab jumps you back in
 - **Exercise notes** — jot a note on any exercise (e.g. grip, cues, settings); notes are tied to the exercise and reappear every time it comes up in a future workout
 - **Rest timer** — automatic countdown after each logged set with haptic feedback on completion
@@ -25,6 +26,7 @@ A personal, offline-first workout tracking app for Android built with React Nati
 | State | Zustand (active workout session + theme override) |
 | UI | React Native core + @expo/vector-icons (Ionicons) |
 | Calendar | react-native-calendars |
+| Drag & drop | react-native-reorderable-list (gesture-handler + reanimated) |
 | Haptics | expo-haptics + Vibration API |
 
 ## Project Structure
@@ -70,15 +72,15 @@ Requires [Node.js](https://nodejs.org) and the [Expo Go](https://expo.dev/go) ap
 
 ```bash
 cd WorkoutTracker
-npm install
+npm install --legacy-peer-deps
 npx expo start
 ```
 
-Scan the QR code with Expo Go. The database is created and seeded on first launch.
+The `--legacy-peer-deps` flag avoids a benign `react-dom` version-range conflict in the Expo dependency tree. Scan the QR code with Expo Go. The database is created and seeded on first launch.
 
 ## Database Schema
 
-Core tables: `exercises`, `routines`, `routine_exercises`, `sessions`, `sets`, `exercise_notes` (per-exercise notes keyed by exercise), `active_session` (single-row snapshot of the in-progress workout for reload survival), plus a `settings` key-value table. All data lives on-device in SQLite — no backend, no network requests.
+Core tables: `exercises`, `routines`, `routine_exercises` (ordered exercises per routine, with a remembered `target_sets` count), `sessions`, `sets`, `exercise_notes` (per-exercise notes keyed by exercise), `active_session` (single-row snapshot of the in-progress workout for reload survival), plus a `settings` key-value table. All data lives on-device in SQLite — no backend, no network requests.
 
 ## Personal Records
 

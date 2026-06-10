@@ -18,7 +18,20 @@ import type { ThemeMode } from '../src/store/themeStore';
 
 async function initDb(db: SQLiteDatabase) {
   await db.execAsync(SCHEMA_SQL);
+  await migrateDb(db);
   await seedExercisesIfNeeded(db);
+}
+
+// Add columns to pre-existing tables (CREATE TABLE IF NOT EXISTS won't alter them).
+async function migrateDb(db: SQLiteDatabase) {
+  const cols = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(routine_exercises)'
+  );
+  if (!cols.some((col) => col.name === 'target_sets')) {
+    await db.execAsync(
+      'ALTER TABLE routine_exercises ADD COLUMN target_sets INTEGER NOT NULL DEFAULT 1'
+    );
+  }
 }
 
 function ThemeLoader() {
@@ -40,6 +53,7 @@ function ThemeLoader() {
 function SessionPersister() {
   const db = useSQLiteContext();
   const sessionId = useWorkoutStore((s) => s.sessionId);
+  const routineId = useWorkoutStore((s) => s.routineId);
   const exercises = useWorkoutStore((s) => s.exercises);
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,7 +62,9 @@ function SessionPersister() {
   useEffect(() => {
     loadActiveSession(db).then((saved) => {
       if (saved && useWorkoutStore.getState().sessionId == null) {
-        useWorkoutStore.getState().startSession(saved.sessionId, saved.exercises);
+        useWorkoutStore
+          .getState()
+          .startSession(saved.sessionId, saved.exercises, saved.routineId ?? null);
       }
       hydrated.current = true;
     });
@@ -63,12 +79,12 @@ function SessionPersister() {
       return;
     }
     saveTimer.current = setTimeout(() => {
-      void saveActiveSession(db, { sessionId, exercises });
+      void saveActiveSession(db, { sessionId, routineId, exercises });
     }, 400);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [sessionId, exercises, db]);
+  }, [sessionId, routineId, exercises, db]);
 
   return null;
 }

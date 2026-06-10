@@ -163,6 +163,26 @@ export async function removeExerciseFromRoutine(
   }
 }
 
+// Replace a routine's exercise list with the given ordered items (idempotent).
+// Each item carries its target set count so routines remember sets-per-exercise.
+export async function syncRoutineExercises(
+  db: SQLiteDatabase,
+  routineId: number,
+  items: { exercise_id: string; sets: number }[]
+): Promise<void> {
+  await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [routineId]);
+  for (let i = 0; i < items.length; i++) {
+    await db.runAsync(
+      'INSERT INTO routine_exercises (routine_id, exercise_id, position, target_sets) VALUES (?, ?, ?, ?)',
+      [routineId, items[i].exercise_id, i, Math.max(1, items[i].sets)]
+    );
+  }
+  await db.runAsync(
+    "UPDATE routines SET updated_at = datetime('now') WHERE id = ?",
+    [routineId]
+  );
+}
+
 export async function reorderRoutineExercises(
   db: SQLiteDatabase,
   orderedIds: number[]
@@ -291,6 +311,7 @@ export async function getSetsForSession(
 
 export interface PersistedSession {
   sessionId: number;
+  routineId: number | null;
   exercises: ActiveExercise[];
 }
 

@@ -76,30 +76,31 @@ export default function WorkoutTab() {
     const sessionId = await createSession(db, today, routine.id);
     const rexes = await getRoutineExercises(db, routine.id);
     const exercises = await Promise.all(
-      rexes.map(async (re) => ({
-        exercise_id: re.exercise_id,
-        exercise_name: re.exercise_name ?? re.exercise_id,
-        note: await getExerciseNote(db, re.exercise_id),
-        sets: [
-          {
+      rexes.map(async (re) => {
+        const count = Math.max(1, re.target_sets ?? 1);
+        return {
+          exercise_id: re.exercise_id,
+          exercise_name: re.exercise_name ?? re.exercise_id,
+          note: await getExerciseNote(db, re.exercise_id),
+          sets: Array.from({ length: count }, (_, i) => ({
             exercise_id: re.exercise_id,
             exercise_name: re.exercise_name ?? re.exercise_id,
-            set_number: 1,
+            set_number: i + 1,
             weight: '',
             reps: '',
             saved: false,
-          },
-        ],
-      }))
+          })),
+        };
+      })
     );
-    startSession(sessionId, exercises);
+    startSession(sessionId, exercises, routine.id);
     router.push('/workout/active');
   };
 
   const handleStartEmpty = async () => {
     const today = new Date().toISOString().slice(0, 10);
     const sessionId = await createSession(db, today, null);
-    startSession(sessionId, []);
+    startSession(sessionId, [], null);
     router.push('/workout/active');
   };
 

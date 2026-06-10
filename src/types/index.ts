@@ -23,6 +23,7 @@ export interface RoutineExercise {
   routine_id: number;
   exercise_id: string;
   position: number;
+  target_sets: number;
   // joined fields
   exercise_name?: string;
   equipment?: string | null;

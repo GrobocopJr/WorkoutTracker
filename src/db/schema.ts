@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS routine_exercises (
   routine_id  INTEGER NOT NULL REFERENCES routines(id)  ON DELETE CASCADE,
   exercise_id TEXT    NOT NULL REFERENCES exercises(id),
   position    INTEGER NOT NULL,
+  target_sets INTEGER NOT NULL DEFAULT 1,
   UNIQUE(routine_id, position)
 );
 

@@ -3,15 +3,21 @@ import type { ActiveExercise } from '../types';
 
 interface WorkoutState {
   sessionId: number | null;
+  routineId: number | null;
   exercises: ActiveExercise[];
   timerSeconds: number;
   timerRunning: boolean;
   timerDefault: number;
 
-  startSession: (sessionId: number, exercises: ActiveExercise[]) => void;
+  startSession: (
+    sessionId: number,
+    exercises: ActiveExercise[],
+    routineId: number | null
+  ) => void;
   endSession: () => void;
   addExercise: (exercise: ActiveExercise) => void;
   removeExercise: (exerciseId: string) => void;
+  reorderExercises: (exercises: ActiveExercise[]) => void;
   updateSet: (
     exerciseId: string,
     setIndex: number,
@@ -30,16 +36,17 @@ interface WorkoutState {
 
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   sessionId: null,
+  routineId: null,
   exercises: [],
   timerSeconds: 0,
   timerRunning: false,
   timerDefault: 90,
 
-  startSession: (sessionId, exercises) =>
-    set({ sessionId, exercises, timerSeconds: 0, timerRunning: false }),
+  startSession: (sessionId, exercises, routineId) =>
+    set({ sessionId, routineId, exercises, timerSeconds: 0, timerRunning: false }),
 
   endSession: () =>
-    set({ sessionId: null, exercises: [], timerSeconds: 0, timerRunning: false }),
+    set({ sessionId: null, routineId: null, exercises: [], timerSeconds: 0, timerRunning: false }),
 
   addExercise: (exercise) =>
     set((state) => ({ exercises: [...state.exercises, exercise] })),
@@ -48,6 +55,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set((state) => ({
       exercises: state.exercises.filter((ex) => ex.exercise_id !== exerciseId),
     })),
+
+  reorderExercises: (exercises) => set({ exercises }),
 
   updateSet: (exerciseId, setIndex, field, value) =>
     set((state) => ({

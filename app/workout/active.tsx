@@ -1,14 +1,19 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   StyleSheet,
   Alert,
   Vibration,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import ReorderableList, {
+  useReorderableDrag,
+  reorderItems,
+} from 'react-native-reorderable-list';
+import type { ReorderableListReorderEvent } from 'react-native-reorderable-list';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,18 +26,22 @@ import {
   deleteSet,
   getExerciseNote,
   setExerciseNote,
+  syncRoutineExercises,
 } from '../../src/db/queries';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { ExercisePicker } from '../../src/components/ExercisePicker';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
-import type { Exercise } from '../../src/types';
+import type { Exercise, ActiveExercise } from '../../src/types';
+
+type Styles = ReturnType<typeof makeStyles>;
 
 export default function ActiveWorkout() {
   const db = useSQLiteContext();
   const router = useRouter();
   const {
     sessionId,
+    routineId,
     exercises,
     timerSeconds,
     timerRunning,
@@ -46,7 +55,7 @@ export default function ActiveWorkout() {
     removeLastSet,
     addExercise,
     removeExercise,
-    setExerciseNote: updateNote,
+    reorderExercises,
     endSession: clearSession,
   } = useWorkoutStore();
 
@@ -95,6 +104,19 @@ export default function ActiveWorkout() {
     };
   }, [timerRunning]);
 
+  // Mirror the current exercise list + set counts back to the routine (if any).
+  const syncRoutine = useCallback(
+    async (exs: ActiveExercise[]) => {
+      if (routineId == null) return;
+      await syncRoutineExercises(
+        db,
+        routineId,
+        exs.map((e) => ({ exercise_id: e.exercise_id, sets: e.sets.length }))
+      );
+    },
+    [db, routineId]
+  );
+
   const handleLogSet = async (
     exerciseId: string,
     setIndex: number,
@@ -115,6 +137,11 @@ export default function ActiveWorkout() {
     startTimer(timerDefault);
   };
 
+  const handleAddSet = (ex: ActiveExercise) => {
+    addSetToExercise(ex.exercise_id, ex.exercise_name);
+    void syncRoutine(useWorkoutStore.getState().exercises);
+  };
+
   const handleRemoveExercise = (exerciseId: string, exerciseName: string) => {
     const ex = exercises.find((e) => e.exercise_id === exerciseId);
     if (!ex) return;
@@ -122,6 +149,7 @@ export default function ActiveWorkout() {
     const doRemove = async () => {
       for (const id of loggedIds) await deleteSet(db, id);
       removeExercise(exerciseId);
+      void syncRoutine(useWorkoutStore.getState().exercises);
     };
     const msg = loggedIds.length
       ? `Remove "${exerciseName}"? Its ${loggedIds.length} logged set${loggedIds.length > 1 ? 's' : ''} will be deleted from history.`
@@ -139,6 +167,7 @@ export default function ActiveWorkout() {
     const doRemove = async () => {
       if (last.saved && last.id != null) await deleteSet(db, last.id);
       removeLastSet(exerciseId);
+      void syncRoutine(useWorkoutStore.getState().exercises);
     };
     if (last.saved) {
       Alert.alert(
@@ -152,6 +181,12 @@ export default function ActiveWorkout() {
     } else {
       void doRemove();
     }
+  };
+
+  const handleReorder = ({ from, to }: ReorderableListReorderEvent) => {
+    const next = reorderItems(exercises, from, to);
+    reorderExercises(next);
+    void syncRoutine(next);
   };
 
   const handleFinish = () => {
@@ -186,6 +221,7 @@ export default function ActiveWorkout() {
         },
       ],
     });
+    void syncRoutine(useWorkoutStore.getState().exercises);
     setPickerVisible(false);
   };
 
@@ -224,99 +260,30 @@ export default function ActiveWorkout() {
         </View>
       )}
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {exercises.length === 0 && (
-          <Text style={styles.empty}>Tap "Add Exercise" below to start logging.</Text>
-        )}
-
-        {exercises.map((ex) => (
-          <View key={ex.exercise_id} style={styles.exerciseCard}>
-            <View style={styles.exerciseHeader}>
-              <Text style={styles.exerciseTitle}>{ex.exercise_name}</Text>
-              <TouchableOpacity
-                onPress={() => handleRemoveExercise(ex.exercise_id, ex.exercise_name)}
-                hitSlop={10}
-              >
-                <Ionicons name="trash-outline" size={20} color={c.danger} />
-              </TouchableOpacity>
-            </View>
-
-            <TextInput
-              style={styles.noteInput}
-              value={ex.note ?? ''}
-              onChangeText={(v) => updateNote(ex.exercise_id, v)}
-              onEndEditing={(e) => setExerciseNote(db, ex.exercise_id, e.nativeEvent.text)}
-              placeholder="Add a note…"
-              placeholderTextColor={c.placeholder}
-              multiline
+      <GestureHandlerRootView style={styles.scroll}>
+        <ReorderableList
+          data={exercises}
+          onReorder={handleReorder}
+          keyExtractor={(item) => item.exercise_id}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <Text style={styles.empty}>Tap "Add Exercise" below to start logging.</Text>
+          }
+          renderItem={({ item }) => (
+            <ExerciseCard
+              ex={item}
+              units={units}
+              styles={styles}
+              c={c}
+              onLog={handleLogSet}
+              onAddSet={handleAddSet}
+              onRemoveSet={handleRemoveSet}
+              onRemoveExercise={handleRemoveExercise}
             />
-
-            <View style={styles.setHeader}>
-              <Text style={styles.setHeaderCell}>Set</Text>
-              <Text style={[styles.setHeaderCell, { flex: 2 }]}>Weight ({units})</Text>
-              <Text style={[styles.setHeaderCell, { flex: 1.5 }]}>Reps</Text>
-              <Text style={[styles.setHeaderCell, { flex: 1 }]}></Text>
-            </View>
-
-            {ex.sets.map((set, idx) => (
-              <View key={idx} style={[styles.setRow, set.saved && styles.setRowSaved]}>
-                <Text style={styles.setNum}>{set.set_number}</Text>
-                <TextInput
-                  style={[styles.setInput, { flex: 2 }]}
-                  value={set.weight}
-                  onChangeText={(v) => updateSet(ex.exercise_id, idx, 'weight', v)}
-                  keyboardType="decimal-pad"
-                  placeholder="0"
-                  placeholderTextColor={c.placeholder}
-                  editable={!set.saved}
-                />
-                <TextInput
-                  style={[styles.setInput, { flex: 1.5 }]}
-                  value={set.reps}
-                  onChangeText={(v) => updateSet(ex.exercise_id, idx, 'reps', v)}
-                  keyboardType="number-pad"
-                  placeholder="0"
-                  placeholderTextColor={c.placeholder}
-                  editable={!set.saved}
-                />
-                <TouchableOpacity
-                  style={[styles.logBtn, set.saved && styles.logBtnSaved]}
-                  onPress={() =>
-                    !set.saved &&
-                    handleLogSet(ex.exercise_id, idx, set.weight, set.reps, set.set_number)
-                  }
-                  disabled={set.saved}
-                >
-                  <Ionicons
-                    name={set.saved ? 'checkmark' : 'checkmark-outline'}
-                    size={18}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            <View style={styles.setActions}>
-              <TouchableOpacity
-                style={styles.addSetBtn}
-                onPress={() => addSetToExercise(ex.exercise_id, ex.exercise_name)}
-              >
-                <Ionicons name="add" size={16} color={c.accent} />
-                <Text style={styles.addSetText}>Add Set</Text>
-              </TouchableOpacity>
-              {ex.sets.length > 1 && (
-                <TouchableOpacity
-                  style={styles.addSetBtn}
-                  onPress={() => handleRemoveSet(ex.exercise_id)}
-                >
-                  <Ionicons name="remove" size={16} color={c.danger} />
-                  <Text style={styles.removeSetText}>Remove Set</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        ))}
-      </ScrollView>
+          )}
+        />
+      </GestureHandlerRootView>
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.addExBtn} onPress={() => setPickerVisible(true)}>
@@ -333,6 +300,129 @@ export default function ActiveWorkout() {
         onClose={() => setPickerVisible(false)}
         onSelect={handleAddExercise}
       />
+    </View>
+  );
+}
+
+interface ExerciseCardProps {
+  ex: ActiveExercise;
+  units: string;
+  styles: Styles;
+  c: Colors;
+  onLog: (
+    exerciseId: string,
+    setIndex: number,
+    weight: string,
+    reps: string,
+    setNumber: number
+  ) => void;
+  onAddSet: (ex: ActiveExercise) => void;
+  onRemoveSet: (exerciseId: string) => void;
+  onRemoveExercise: (exerciseId: string, name: string) => void;
+}
+
+function ExerciseCard({
+  ex,
+  units,
+  styles,
+  c,
+  onLog,
+  onAddSet,
+  onRemoveSet,
+  onRemoveExercise,
+}: ExerciseCardProps) {
+  const db = useSQLiteContext();
+  const updateSet = useWorkoutStore((s) => s.updateSet);
+  const updateNote = useWorkoutStore((s) => s.setExerciseNote);
+  const drag = useReorderableDrag();
+
+  return (
+    <View style={styles.exerciseCard}>
+      <View style={styles.exerciseHeader}>
+        <Text style={styles.exerciseTitle}>{ex.exercise_name}</Text>
+        <TouchableOpacity
+          onLongPress={drag}
+          delayLongPress={150}
+          hitSlop={8}
+          style={styles.dragHandle}
+        >
+          <Ionicons name="reorder-three-outline" size={24} color={c.muted} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => onRemoveExercise(ex.exercise_id, ex.exercise_name)}
+          hitSlop={8}
+        >
+          <Ionicons name="trash-outline" size={20} color={c.danger} />
+        </TouchableOpacity>
+      </View>
+
+      <TextInput
+        style={styles.noteInput}
+        value={ex.note ?? ''}
+        onChangeText={(v) => updateNote(ex.exercise_id, v)}
+        onEndEditing={(e) => setExerciseNote(db, ex.exercise_id, e.nativeEvent.text)}
+        placeholder="Add a note…"
+        placeholderTextColor={c.placeholder}
+        multiline
+      />
+
+      <View style={styles.setHeader}>
+        <Text style={styles.setHeaderCell}>Set</Text>
+        <Text style={[styles.setHeaderCell, { flex: 2 }]}>Weight ({units})</Text>
+        <Text style={[styles.setHeaderCell, { flex: 1.5 }]}>Reps</Text>
+        <Text style={[styles.setHeaderCell, { flex: 1 }]}></Text>
+      </View>
+
+      {ex.sets.map((set, idx) => (
+        <View key={idx} style={[styles.setRow, set.saved && styles.setRowSaved]}>
+          <Text style={styles.setNum}>{set.set_number}</Text>
+          <TextInput
+            style={[styles.setInput, { flex: 2 }]}
+            value={set.weight}
+            onChangeText={(v) => updateSet(ex.exercise_id, idx, 'weight', v)}
+            keyboardType="decimal-pad"
+            placeholder="0"
+            placeholderTextColor={c.placeholder}
+            editable={!set.saved}
+          />
+          <TextInput
+            style={[styles.setInput, { flex: 1.5 }]}
+            value={set.reps}
+            onChangeText={(v) => updateSet(ex.exercise_id, idx, 'reps', v)}
+            keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor={c.placeholder}
+            editable={!set.saved}
+          />
+          <TouchableOpacity
+            style={[styles.logBtn, set.saved && styles.logBtnSaved]}
+            onPress={() =>
+              !set.saved &&
+              onLog(ex.exercise_id, idx, set.weight, set.reps, set.set_number)
+            }
+            disabled={set.saved}
+          >
+            <Ionicons
+              name={set.saved ? 'checkmark' : 'checkmark-outline'}
+              size={18}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      <View style={styles.setActions}>
+        <TouchableOpacity style={styles.addSetBtn} onPress={() => onAddSet(ex)}>
+          <Ionicons name="add" size={16} color={c.accent} />
+          <Text style={styles.addSetText}>Add Set</Text>
+        </TouchableOpacity>
+        {ex.sets.length > 1 && (
+          <TouchableOpacity style={styles.addSetBtn} onPress={() => onRemoveSet(ex.exercise_id)}>
+            <Ionicons name="remove" size={16} color={c.danger} />
+            <Text style={styles.removeSetText}>Remove Set</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -370,10 +460,10 @@ function makeStyles(c: Colors) {
     exerciseHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       marginBottom: 4,
     },
     exerciseTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: c.text },
+    dragHandle: { paddingHorizontal: 8 },
     noteInput: {
       fontSize: 13,
       fontStyle: 'italic',
