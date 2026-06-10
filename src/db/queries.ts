@@ -216,6 +216,24 @@ export async function endSession(db: SQLiteDatabase, sessionId: number): Promise
   );
 }
 
+export async function renameSession(
+  db: SQLiteDatabase,
+  id: number,
+  name: string
+): Promise<void> {
+  const trimmed = name.trim();
+  await db.runAsync('UPDATE sessions SET name = ? WHERE id = ?', [
+    trimmed === '' ? null : trimmed,
+    id,
+  ]);
+}
+
+export async function deleteSession(db: SQLiteDatabase, id: number): Promise<void> {
+  // Remove logged sets first (defensive — also covered by ON DELETE CASCADE).
+  await db.runAsync('DELETE FROM sets WHERE session_id = ?', [id]);
+  await db.runAsync('DELETE FROM sessions WHERE id = ?', [id]);
+}
+
 export async function getSessionDates(db: SQLiteDatabase): Promise<string[]> {
   const rows = await db.getAllAsync<{ date: string }>(
     'SELECT DISTINCT date FROM sessions ORDER BY date'

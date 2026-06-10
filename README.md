@@ -11,7 +11,7 @@ A personal, offline-first workout tracking app for Android built with React Nati
 - **Resumable sessions** — the in-progress workout is saved to SQLite as you go, so it survives app reloads and restarts; a "Resume Current Workout" button on the home tab jumps you back in
 - **Exercise notes** — jot a note on any exercise (e.g. grip, cues, settings); notes are tied to the exercise and reappear every time it comes up in a future workout
 - **Rest timer** — automatic countdown after each logged set with haptic feedback on completion
-- **History calendar** — tap any date to see every set logged that day, grouped by exercise
+- **History calendar** — tap any date to see every set logged that day, grouped by exercise; rename or delete past workouts, with start/end times shown in Chicago time (America/Chicago, DST-aware)
 - **Personal records** — per-exercise stats including last weight used, best weight, and estimated 1RM via the Epley formula
 - **Dark mode** — System / Light / Dark toggle in Settings, persisted across launches
 - **Weight units** — lbs or kg, app-wide
@@ -80,7 +80,7 @@ The `--legacy-peer-deps` flag avoids a benign `react-dom` version-range conflict
 
 ## Database Schema
 
-Core tables: `exercises`, `routines`, `routine_exercises` (ordered exercises per routine, with a remembered `target_sets` count), `sessions`, `sets`, `exercise_notes` (per-exercise notes keyed by exercise), `active_session` (single-row snapshot of the in-progress workout for reload survival), plus a `settings` key-value table. All data lives on-device in SQLite — no backend, no network requests.
+Core tables: `exercises`, `routines`, `routine_exercises` (ordered exercises per routine, with a remembered `target_sets` count), `sessions` (each with an optional custom `name`), `sets`, `exercise_notes` (per-exercise notes keyed by exercise), `active_session` (single-row snapshot of the in-progress workout for reload survival), plus a `settings` key-value table. All data lives on-device in SQLite — no backend, no network requests.
 
 ## Personal Records
 

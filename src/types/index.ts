@@ -34,6 +34,7 @@ export interface Session {
   id: number;
   routine_id: number | null;
   date: string;
+  name: string | null;
   started_at: string;
   ended_at: string | null;
   notes: string | null;

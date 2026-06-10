@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   routine_id INTEGER REFERENCES routines(id) ON DELETE SET NULL,
   date       TEXT NOT NULL,
+  name       TEXT,
   started_at TEXT NOT NULL DEFAULT (datetime('now')),
   ended_at   TEXT,
   notes      TEXT
