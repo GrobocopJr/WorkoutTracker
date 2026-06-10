@@ -56,6 +56,7 @@ export interface ExerciseStat {
 }
 
 export interface ActiveSet {
+  id?: number; // DB row id once logged, used to delete a saved set
   exercise_id: string;
   exercise_name: string;
   set_number: number;

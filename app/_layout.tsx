@@ -1,12 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { SCHEMA_SQL } from '../src/db/schema';
 import { seedExercisesIfNeeded } from '../src/db/seed';
-import { getSetting } from '../src/db/queries';
+import {
+  getSetting,
+  loadActiveSession,
+  saveActiveSession,
+  clearActiveSession,
+} from '../src/db/queries';
 import { useColors, useIsDark } from '../src/theme';
 import { useThemeStore } from '../src/store/themeStore';
+import { useWorkoutStore } from '../src/store/workoutStore';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { ThemeMode } from '../src/store/themeStore';
 
@@ -26,6 +32,43 @@ function ThemeLoader() {
       }
     });
   }, [db]);
+
+  return null;
+}
+
+// Persists the in-progress workout to SQLite so it survives reloads / restarts.
+function SessionPersister() {
+  const db = useSQLiteContext();
+  const sessionId = useWorkoutStore((s) => s.sessionId);
+  const exercises = useWorkoutStore((s) => s.exercises);
+  const hydrated = useRef(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Restore any saved in-progress session once on launch.
+  useEffect(() => {
+    loadActiveSession(db).then((saved) => {
+      if (saved && useWorkoutStore.getState().sessionId == null) {
+        useWorkoutStore.getState().startSession(saved.sessionId, saved.exercises);
+      }
+      hydrated.current = true;
+    });
+  }, [db]);
+
+  // Persist changes (debounced); clear immediately once the session ends.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (sessionId == null) {
+      void clearActiveSession(db);
+      return;
+    }
+    saveTimer.current = setTimeout(() => {
+      void saveActiveSession(db, { sessionId, exercises });
+    }, 400);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [sessionId, exercises, db]);
 
   return null;
 }
@@ -68,6 +111,7 @@ export default function RootLayout() {
   return (
     <SQLiteProvider databaseName="workout.db" onInit={initDb}>
       <ThemeLoader />
+      <SessionPersister />
       <AppShell />
     </SQLiteProvider>
   );

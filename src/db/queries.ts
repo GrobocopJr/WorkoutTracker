@@ -6,6 +6,7 @@ import type {
   Session,
   WorkoutSet,
   ExerciseStat,
+  ActiveExercise,
 } from '../types';
 
 // ── Exercises ──────────────────────────────────────────────────────────────
@@ -240,6 +241,10 @@ export async function logSet(
   return result.lastInsertRowId;
 }
 
+export async function deleteSet(db: SQLiteDatabase, id: number): Promise<void> {
+  await db.runAsync('DELETE FROM sets WHERE id = ?', [id]);
+}
+
 export async function getLastSet(
   db: SQLiteDatabase,
   exerciseId: string
@@ -280,6 +285,42 @@ export async function getSetsForSession(
     'SELECT * FROM sets WHERE session_id = ? ORDER BY exercise_id, set_number',
     [sessionId]
   );
+}
+
+// ── Active Session (in-progress workout, survives reloads) ──────────────────
+
+export interface PersistedSession {
+  sessionId: number;
+  exercises: ActiveExercise[];
+}
+
+export async function saveActiveSession(
+  db: SQLiteDatabase,
+  data: PersistedSession
+): Promise<void> {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO active_session (id, data, updated_at)
+     VALUES (1, ?, datetime('now'))`,
+    [JSON.stringify(data)]
+  );
+}
+
+export async function loadActiveSession(
+  db: SQLiteDatabase
+): Promise<PersistedSession | null> {
+  const row = await db.getFirstAsync<{ data: string }>(
+    'SELECT data FROM active_session WHERE id = 1'
+  );
+  if (!row) return null;
+  try {
+    return JSON.parse(row.data) as PersistedSession;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearActiveSession(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync('DELETE FROM active_session WHERE id = 1');
 }
 
 // ── Exercise Notes ─────────────────────────────────────────────────────────

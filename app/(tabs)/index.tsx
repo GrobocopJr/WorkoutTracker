@@ -30,6 +30,7 @@ export default function WorkoutTab() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { startSession } = useWorkoutStore();
+  const activeSessionId = useWorkoutStore((s) => s.sessionId);
   const c = useColors();
   const styles = useMemo(() => makeStyles(c), [c]);
 
@@ -112,6 +113,16 @@ export default function WorkoutTab() {
 
   return (
     <View style={styles.container}>
+      {activeSessionId != null && (
+        <TouchableOpacity
+          style={styles.resumeBtn}
+          onPress={() => router.push('/workout/active')}
+        >
+          <Ionicons name="play" size={20} color="#fff" />
+          <Text style={styles.resumeBtnText}>Resume Current Workout</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={styles.emptyBtn} onPress={handleStartEmpty}>
         <Ionicons name="add-circle-outline" size={20} color="#fff" />
         <Text style={styles.emptyBtnText}>Start Empty Workout</Text>
@@ -207,6 +218,17 @@ function makeStyles(c: Colors) {
       marginBottom: 20,
     },
     emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    resumeBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: c.success,
+      borderRadius: 10,
+      padding: 14,
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    resumeBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
     sectionHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',

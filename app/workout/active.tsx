@@ -18,6 +18,7 @@ import {
   endSession,
   getSetting,
   getLastSet,
+  deleteSet,
   getExerciseNote,
   setExerciseNote,
 } from '../../src/db/queries';
@@ -42,6 +43,7 @@ export default function ActiveWorkout() {
     updateSet,
     markSetSaved,
     addSetToExercise,
+    removeLastSet,
     addExercise,
     setExerciseNote: updateNote,
     endSession: clearSession,
@@ -106,10 +108,32 @@ export default function ActiveWorkout() {
       Alert.alert('Invalid input', 'Please enter valid weight and reps.');
       return;
     }
-    await logSet(db, sessionId, exerciseId, setNumber, w, r);
-    markSetSaved(exerciseId, setIndex);
+    const newId = await logSet(db, sessionId, exerciseId, setNumber, w, r);
+    markSetSaved(exerciseId, setIndex, newId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     startTimer(timerDefault);
+  };
+
+  const handleRemoveSet = (exerciseId: string) => {
+    const ex = exercises.find((e) => e.exercise_id === exerciseId);
+    if (!ex || ex.sets.length <= 1) return;
+    const last = ex.sets[ex.sets.length - 1];
+    const doRemove = async () => {
+      if (last.saved && last.id != null) await deleteSet(db, last.id);
+      removeLastSet(exerciseId);
+    };
+    if (last.saved) {
+      Alert.alert(
+        'Remove Logged Set',
+        `Set ${last.set_number} is already logged. Remove it and delete it from history?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: doRemove },
+        ]
+      );
+    } else {
+      void doRemove();
+    }
   };
 
   const handleFinish = () => {
@@ -246,13 +270,24 @@ export default function ActiveWorkout() {
               </View>
             ))}
 
-            <TouchableOpacity
-              style={styles.addSetBtn}
-              onPress={() => addSetToExercise(ex.exercise_id, ex.exercise_name)}
-            >
-              <Ionicons name="add" size={16} color={c.accent} />
-              <Text style={styles.addSetText}>Add Set</Text>
-            </TouchableOpacity>
+            <View style={styles.setActions}>
+              <TouchableOpacity
+                style={styles.addSetBtn}
+                onPress={() => addSetToExercise(ex.exercise_id, ex.exercise_name)}
+              >
+                <Ionicons name="add" size={16} color={c.accent} />
+                <Text style={styles.addSetText}>Add Set</Text>
+              </TouchableOpacity>
+              {ex.sets.length > 1 && (
+                <TouchableOpacity
+                  style={styles.addSetBtn}
+                  onPress={() => handleRemoveSet(ex.exercise_id)}
+                >
+                  <Ionicons name="remove" size={16} color={c.danger} />
+                  <Text style={styles.removeSetText}>Remove Set</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         ))}
       </ScrollView>
@@ -338,8 +373,10 @@ function makeStyles(c: Colors) {
       justifyContent: 'center',
     },
     logBtnSaved: { backgroundColor: c.success },
-    addSetBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, paddingVertical: 6 },
+    setActions: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 4 },
+    addSetBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6 },
     addSetText: { color: c.accent, fontWeight: '600' },
+    removeSetText: { color: c.danger, fontWeight: '600' },
     footer: {
       position: 'absolute',
       bottom: 0,

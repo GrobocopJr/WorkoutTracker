@@ -17,8 +17,9 @@ interface WorkoutState {
     field: 'weight' | 'reps',
     value: string
   ) => void;
-  markSetSaved: (exerciseId: string, setIndex: number) => void;
+  markSetSaved: (exerciseId: string, setIndex: number, id?: number) => void;
   addSetToExercise: (exerciseId: string, exerciseName: string) => void;
+  removeLastSet: (exerciseId: string) => void;
   setExerciseNote: (exerciseId: string, note: string) => void;
   startTimer: (seconds: number) => void;
   tickTimer: () => void;
@@ -56,7 +57,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       ),
     })),
 
-  markSetSaved: (exerciseId, setIndex) =>
+  markSetSaved: (exerciseId, setIndex, id) =>
     set((state) => ({
       exercises: state.exercises.map((ex) =>
         ex.exercise_id !== exerciseId
@@ -64,7 +65,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           : {
               ...ex,
               sets: ex.sets.map((s, i) =>
-                i !== setIndex ? s : { ...s, saved: true }
+                i !== setIndex ? s : { ...s, saved: true, id: id ?? s.id }
               ),
             }
       ),
@@ -89,6 +90,14 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
             },
           ],
         };
+      }),
+    })),
+
+  removeLastSet: (exerciseId) =>
+    set((state) => ({
+      exercises: state.exercises.map((ex) => {
+        if (ex.exercise_id !== exerciseId || ex.sets.length <= 1) return ex;
+        return { ...ex, sets: ex.sets.slice(0, -1) };
       }),
     })),
 

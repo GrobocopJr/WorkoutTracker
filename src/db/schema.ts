@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS exercise_notes (
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS active_session (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  data       TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
