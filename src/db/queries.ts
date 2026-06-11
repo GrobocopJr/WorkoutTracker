@@ -306,6 +306,18 @@ export async function renameSession(
   ]);
 }
 
+export async function saveSessionNote(
+  db: SQLiteDatabase,
+  id: number,
+  note: string
+): Promise<void> {
+  const trimmed = note.trim();
+  await db.runAsync('UPDATE sessions SET notes = ? WHERE id = ?', [
+    trimmed === '' ? null : trimmed,
+    id,
+  ]);
+}
+
 export async function deleteSession(db: SQLiteDatabase, id: number): Promise<void> {
   // Remove logged sets first (defensive — also covered by ON DELETE CASCADE).
   await db.runAsync('DELETE FROM sets WHERE session_id = ?', [id]);
@@ -452,6 +464,52 @@ export async function getExerciseHistory(
      ORDER BY s.date ASC, s.started_at ASC`,
     [exerciseId]
   );
+}
+
+export interface PRHistoryPoint {
+  date: string;
+  weight: number;
+  reps: number;
+  estimated_1rm: number;
+}
+
+export async function getPRHistory(
+  db: SQLiteDatabase,
+  exerciseId: string
+): Promise<PRHistoryPoint[]> {
+  // Fetch every set in chronological order, best 1RM first within each session.
+  const rows = await db.getAllAsync<{
+    session_id: number;
+    date: string;
+    weight: number;
+    reps: number;
+    estimated_1rm: number;
+  }>(
+    `SELECT ses.id AS session_id, ses.date, s.weight, s.reps,
+            s.weight * (1.0 + s.reps / 30.0) AS estimated_1rm
+     FROM sets s
+     JOIN sessions ses ON s.session_id = ses.id
+     WHERE s.exercise_id = ?
+     ORDER BY ses.date ASC, ses.started_at ASC, estimated_1rm DESC`,
+    [exerciseId]
+  );
+
+  // One best-set per session (first row per session_id wins due to DESC sort above).
+  const sessionBests = new Map<number, typeof rows[0]>();
+  for (const row of rows) {
+    if (!sessionBests.has(row.session_id)) sessionBests.set(row.session_id, row);
+  }
+
+  // Walk chronologically; keep only sets that beat every prior session's 1RM.
+  let best = 0;
+  const prs: PRHistoryPoint[] = [];
+  for (const row of sessionBests.values()) {
+    if (row.estimated_1rm > best) {
+      best = row.estimated_1rm;
+      prs.push({ date: row.date, weight: row.weight, reps: row.reps, estimated_1rm: row.estimated_1rm });
+    }
+  }
+  return prs;
 }
 
 export async function getSetsForSession(

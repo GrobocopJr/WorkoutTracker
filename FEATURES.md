@@ -11,7 +11,7 @@ Track planned features. Check off items as they are completed.
 ## Progress & Motivation
 - [ ] **Muscle group volume dashboard** — weekly tonnage broken down by muscle group using the muscle tags already on each exercise; visualize training balance across chest, back, legs, etc.
 - [ ] **Body weight log** — log body weight by date with a line chart; correlate strength progress with body composition over time
-- [ ] **PR history** — log of every time a PR was set per exercise, not just the current best; shows the date and value of each lifetime PR
+- [x] **PR history** — every session that set a new Epley 1RM for an exercise is listed on the exercise detail page in reverse-chronological order; each entry shows date, weight × reps, and estimated 1RM; the current PR is highlighted in gold
 - [ ] **Weekly / monthly summary** — stats screen showing workouts per week, total volume, PRs set, and most-trained muscles over a selectable time period
 - [ ] **Warm-up sets** — mark a set as warm-up so it's excluded from PR calculations and stats
 - [ ] **Body weight exercises** — option to log bodyweight + added weight or just reps with no weight

@@ -15,12 +15,12 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getExerciseById, getExerciseStat, getExerciseHistory, deleteExercise } from '../../src/db/queries';
+import { getExerciseById, getExerciseStat, getExerciseHistory, getPRHistory, getSetting, deleteExercise } from '../../src/db/queries';
 import { ProgressChart } from '../../src/components/ProgressChart';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { Exercise, ExerciseStat } from '../../src/types';
-import type { ExerciseHistoryPoint } from '../../src/db/queries';
+import type { ExerciseHistoryPoint, PRHistoryPoint } from '../../src/db/queries';
 
 type ChartMetric = 'weight' | 'volume' | '1rm';
 
@@ -36,6 +36,8 @@ export default function ExerciseDetail() {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [stat, setStat] = useState<ExerciseStat | null>(null);
   const [history, setHistory] = useState<ExerciseHistoryPoint[]>([]);
+  const [prHistory, setPrHistory] = useState<PRHistoryPoint[]>([]);
+  const [units, setUnits] = useState('lbs');
   const [chartMetric, setChartMetric] = useState<ChartMetric>('weight');
   const [loading, setLoading] = useState(true);
   const [imgIndex, setImgIndex] = useState(0);
@@ -52,14 +54,18 @@ export default function ExerciseDetail() {
 
   useEffect(() => {
     async function load() {
-      const [ex, st, hist] = await Promise.all([
+      const [ex, st, hist, prs, u] = await Promise.all([
         getExerciseById(db, id),
         getExerciseStat(db, id),
         getExerciseHistory(db, id),
+        getPRHistory(db, id),
+        getSetting(db, 'units'),
       ]);
       setExercise(ex);
       setStat(st);
       setHistory(hist);
+      setPrHistory(prs);
+      if (u) setUnits(u);
       if (ex) navigation.setOptions({ title: ex.name });
       setLoading(false);
     }
@@ -215,6 +221,41 @@ export default function ExerciseDetail() {
           <ProgressChart data={chartData} />
         </View>
 
+        {prHistory.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.chartHeader}>
+              <Text style={styles.sectionTitle}>PR History</Text>
+              <Text style={styles.prCount}>
+                {prHistory.length} PR{prHistory.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            <View style={styles.prList}>
+              {[...prHistory].reverse().map((pr, i) => {
+                const isCurrent = i === 0;
+                return (
+                  <View
+                    key={`${pr.date}-${i}`}
+                    style={[styles.prRow, i > 0 && styles.prRowBorder, isCurrent && styles.prRowCurrent]}
+                  >
+                    <Ionicons
+                      name={isCurrent ? 'trophy' : 'trophy-outline'}
+                      size={15}
+                      color={isCurrent ? '#F59E0B' : c.muted}
+                    />
+                    <Text style={styles.prDate}>{formatPRDate(pr.date)}</Text>
+                    <Text style={styles.prWeight}>
+                      {pr.weight} × {pr.reps}
+                    </Text>
+                    <Text style={[styles.prRM, isCurrent && styles.prRMCurrent]}>
+                      ≈ {Math.round(pr.estimated_1rm)} {units}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {primaryMuscles.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Primary Muscles</Text>
@@ -285,6 +326,15 @@ export default function ExerciseDetail() {
       </Modal>
     </>
   );
+}
+
+function formatPRDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function safeJson(text: string | null): string[] {
@@ -439,5 +489,31 @@ function makeStyles(c: Colors, topInset: number) {
       fontSize: 12,
       fontWeight: '600',
     },
+    prCount: { fontSize: 13, color: c.muted, fontWeight: '600' },
+    prList: {
+      backgroundColor: c.card,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      overflow: 'hidden',
+    },
+    prRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    prRowBorder: {
+      borderTopWidth: 1,
+      borderTopColor: c.borderLight,
+    },
+    prRowCurrent: {
+      backgroundColor: '#FEF3C720',
+    },
+    prDate: { flex: 1, fontSize: 13, color: c.muted },
+    prWeight: { fontSize: 13, fontWeight: '600', color: c.text },
+    prRM: { fontSize: 13, color: c.muted, minWidth: 72, textAlign: 'right' },
+    prRMCurrent: { color: '#F59E0B', fontWeight: '700' },
   });
 }
