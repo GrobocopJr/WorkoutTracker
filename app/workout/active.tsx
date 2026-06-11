@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import ReorderableList, {
 } from 'react-native-reorderable-list';
 import type { ReorderableListReorderEvent } from 'react-native-reorderable-list';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
@@ -32,6 +32,7 @@ import {
   deleteSet,
   getExerciseNote,
   setExerciseNote,
+  saveSessionNote,
   syncRoutineExercises,
   getExerciseById,
   createCustomExercise,
@@ -82,6 +83,7 @@ export default function ActiveWorkout() {
     setWorkoutStartMs,
   } = useWorkoutStore();
 
+  const navigation = useNavigation();
   const c = useColors();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
@@ -107,6 +109,10 @@ export default function ActiveWorkout() {
   const focusedExerciseIdxRef = useRef(-1);
   const keyboardVisibleRef = useRef(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [sessionNote, setSessionNote] = useState('');
+  const [noteModalVisible, setNoteModalVisible] = useState(false);
+  const saveNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteFieldFocusedRef = useRef(false);
 
   const scrollToExercise = useCallback((idx: number) => {
     listRef.current?.scrollToIndex({
@@ -115,6 +121,20 @@ export default function ActiveWorkout() {
       animated: true,
     });
   }, []);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => setNoteModalVisible(true)} hitSlop={8} style={{ marginRight: 4 }}>
+          <Ionicons
+            name={sessionNote.trim() ? 'document-text' : 'document-text-outline'}
+            size={22}
+            color={sessionNote.trim() ? c.accent : c.text}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, sessionNote, c.accent, c.text]);
 
   const handleInputFocus = useCallback((exerciseIdx: number) => {
     focusedExerciseIdxRef.current = exerciseIdx;
@@ -181,6 +201,8 @@ export default function ActiveWorkout() {
       const idx = focusedExerciseIdxRef.current;
       if (idx >= 0) {
         setTimeout(() => scrollToExercise(idx), 150);
+      } else if (noteFieldFocusedRef.current) {
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
       }
     });
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
@@ -189,6 +211,16 @@ export default function ActiveWorkout() {
     });
     return () => { showSub.remove(); hideSub.remove(); };
   }, [scrollToExercise]);
+
+  // Load session note and clean up save timer on unmount.
+  useEffect(() => {
+    if (!sessionId) return;
+    db.getFirstAsync<{ notes: string | null }>(
+      'SELECT notes FROM sessions WHERE id = ?',
+      [sessionId]
+    ).then((row) => setSessionNote(row?.notes ?? ''));
+    return () => { if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current); };
+  }, [sessionId]);
 
 
   useEffect(() => {
@@ -534,6 +566,37 @@ export default function ActiveWorkout() {
               onInputFocus={() => handleInputFocus(index)}
             />
           )}
+          ListFooterComponent={
+            <View style={styles.sessionNoteSection}>
+              <Text style={styles.sessionNoteLabel}>Session Note</Text>
+              <TextInput
+                style={styles.sessionNoteInput}
+                value={sessionNote}
+                onChangeText={(text) => {
+                  setSessionNote(text);
+                  if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current);
+                  if (sessionId) {
+                    saveNoteTimerRef.current = setTimeout(
+                      () => saveSessionNote(db, sessionId, text),
+                      500
+                    );
+                  }
+                }}
+                onFocus={() => {
+                  focusedExerciseIdxRef.current = -1;
+                  noteFieldFocusedRef.current = true;
+                  if (keyboardVisibleRef.current) {
+                    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+                  }
+                }}
+                onBlur={() => { noteFieldFocusedRef.current = false; }}
+                placeholder="Add a note about this workout…"
+                placeholderTextColor={c.placeholder}
+                multiline
+                returnKeyType="default"
+              />
+            </View>
+          }
         />
       </GestureHandlerRootView>
 
@@ -558,6 +621,45 @@ export default function ActiveWorkout() {
         onClose={() => setPickerVisible(false)}
         onSelect={handleAddExercise}
       />
+
+      <Modal
+        visible={noteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoteModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Session Note</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalNoteInput]}
+              value={sessionNote}
+              onChangeText={(text) => {
+                setSessionNote(text);
+                if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current);
+                if (sessionId) {
+                  saveNoteTimerRef.current = setTimeout(
+                    () => saveSessionNote(db, sessionId, text),
+                    500
+                  );
+                }
+              }}
+              placeholder="Add a note about this workout…"
+              placeholderTextColor={c.placeholder}
+              autoFocus
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={() => setNoteModalVisible(false)}
+                style={[styles.modalBtn, styles.modalSaveBtn]}
+              >
+                <Text style={styles.modalSave}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={renameTarget !== null}
@@ -947,6 +1049,25 @@ function makeStyles(c: Colors, bottomInset: number = 0) {
     scroll: { flex: 1 },
     scrollContent: { padding: 14, paddingBottom: 14 },
     empty: { color: c.muted, textAlign: 'center', marginTop: 40, fontSize: 15 },
+    sessionNoteSection: {
+      marginTop: 8,
+      backgroundColor: c.card,
+      borderRadius: 12,
+      padding: 14,
+      gap: 8,
+    },
+    sessionNoteLabel: { fontSize: 13, fontWeight: '600', color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
+    sessionNoteInput: {
+      color: c.text,
+      fontSize: 15,
+      minHeight: 72,
+      textAlignVertical: 'top',
+      backgroundColor: c.inputBg,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 10,
+    },
     exerciseCard: {
       backgroundColor: c.card,
       borderRadius: 12,
@@ -1100,6 +1221,7 @@ function makeStyles(c: Colors, bottomInset: number = 0) {
       fontSize: 15,
       color: c.text,
     },
+    modalNoteInput: { minHeight: 100, textAlignVertical: 'top' },
     modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
     modalBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 },
     modalSaveBtn: { backgroundColor: c.accent },

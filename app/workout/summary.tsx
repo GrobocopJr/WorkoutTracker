@@ -1,10 +1,13 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -12,6 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { saveSessionNote } from '../../src/db/queries';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 
@@ -67,32 +71,48 @@ export default function WorkoutSummary() {
   const [exercises, setExercises] = useState<ExerciseSummary[]>([]);
   const [prSetIds, setPrSetIds] = useState<Set<number>>(new Set());
   const [totalVolume, setTotalVolume] = useState(0);
+  const [durationSecs, setDurationSecs] = useState(parseInt(durationParam ?? '0', 10));
+  const [sessionNote, setSessionNote] = useState('');
+  const saveNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const durationSecs = parseInt(durationParam ?? '0', 10);
+  const canGoBack = router.canGoBack();
+
+  useEffect(() => {
+    return () => { if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current); };
+  }, []);
 
   useEffect(() => {
     if (!sessionId) return;
     const sid = parseInt(sessionId, 10);
 
     async function load() {
-      // Units setting
       const unitRow = await db.getFirstAsync<{ value: string }>(
         "SELECT value FROM settings WHERE key = 'units'"
       );
       const u = unitRow?.value ?? 'lbs';
       setUnits(u);
 
-      // Session info
       const session = await db.getFirstAsync<{
         date: string;
         routine_id: number | null;
-      }>('SELECT date, routine_id FROM sessions WHERE id = ?', [sid]);
+        notes: string | null;
+        started_at: string;
+        ended_at: string | null;
+      }>('SELECT date, routine_id, notes, started_at, ended_at FROM sessions WHERE id = ?', [sid]);
 
       if (!session) { setLoading(false); return; }
 
       setDateLabel(formatDate(session.date));
+      setSessionNote(session.notes ?? '');
 
-      // Routine name
+      // Compute duration from timestamps when not passed as a param (e.g. navigating from history).
+      const paramDuration = parseInt(durationParam ?? '0', 10);
+      if (paramDuration === 0 && session.started_at && session.ended_at) {
+        const start = new Date(session.started_at.replace(' ', 'T') + 'Z');
+        const end = new Date(session.ended_at.replace(' ', 'T') + 'Z');
+        setDurationSecs(Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000)));
+      }
+
       if (session.routine_id) {
         const routine = await db.getFirstAsync<{ name: string }>(
           'SELECT name FROM routines WHERE id = ?',
@@ -101,7 +121,6 @@ export default function WorkoutSummary() {
         setRoutineName(routine?.name ?? null);
       }
 
-      // All sets for this session with exercise names
       const rows = await db.getAllAsync<{
         id: number;
         exercise_id: string;
@@ -119,7 +138,6 @@ export default function WorkoutSummary() {
         [sid]
       );
 
-      // Group by exercise, preserving insertion order
       const exMap = new Map<string, ExerciseSummary>();
       let volume = 0;
       for (const row of rows) {
@@ -143,7 +161,6 @@ export default function WorkoutSummary() {
       setExercises(Array.from(exMap.values()));
       setTotalVolume(Math.round(volume));
 
-      // PR detection: for each exercise find best 1RM from previous sessions
       const exerciseIds = Array.from(exMap.keys());
       if (exerciseIds.length > 0) {
         const placeholders = exerciseIds.map(() => '?').join(',');
@@ -191,7 +208,7 @@ export default function WorkoutSummary() {
               await db.runAsync('DELETE FROM sets WHERE session_id = ?', [sid]);
               await db.runAsync('DELETE FROM sessions WHERE id = ?', [sid]);
             }
-            router.replace('/(tabs)/');
+            router.replace('/(tabs)/history');
           },
         },
       ]
@@ -208,9 +225,18 @@ export default function WorkoutSummary() {
 
   const prCount = prSetIds.size;
   const volumeLabel = totalVolume.toLocaleString();
+  const sid = parseInt(sessionId ?? '0', 10);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      {canGoBack && (
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={8}>
+          <Ionicons name="chevron-back" size={26} color={c.text} />
+        </TouchableOpacity>
+      )}
       <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} hitSlop={8}>
         <Ionicons name="trash-outline" size={22} color={c.danger} />
       </TouchableOpacity>
@@ -218,6 +244,7 @@ export default function WorkoutSummary() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>
@@ -279,18 +306,41 @@ export default function WorkoutSummary() {
             </View>
           ))
         )}
+
+        {/* Session Note */}
+        <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Session Note</Text>
+        <View style={styles.noteCard}>
+          <TextInput
+            style={styles.noteInput}
+            value={sessionNote}
+            onChangeText={(text) => {
+              setSessionNote(text);
+              if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current);
+              if (sid) {
+                saveNoteTimerRef.current = setTimeout(
+                  () => saveSessionNote(db, sid, text),
+                  500
+                );
+              }
+            }}
+            placeholder="Add a note about this workout…"
+            placeholderTextColor={c.placeholder}
+            multiline
+            textAlignVertical="top"
+          />
+        </View>
       </ScrollView>
 
-      {/* Done button */}
+      {/* Done / View History button */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.doneBtn}
-          onPress={() => router.replace('/(tabs)/history')}
+          onPress={() => canGoBack ? router.back() : router.replace('/(tabs)/history')}
         >
-          <Text style={styles.doneBtnText}>View History</Text>
+          <Text style={styles.doneBtnText}>{canGoBack ? 'Done' : 'View History'}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -298,6 +348,13 @@ function makeStyles(c: Colors, topInset: number, bottomInset: number) {
   return StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg },
     container: { flex: 1, backgroundColor: c.bg },
+    backBtn: {
+      position: 'absolute',
+      top: topInset + 14,
+      left: 16,
+      zIndex: 10,
+      padding: 6,
+    },
     deleteBtn: {
       position: 'absolute',
       top: topInset + 14,
@@ -306,7 +363,7 @@ function makeStyles(c: Colors, topInset: number, bottomInset: number) {
       padding: 6,
     },
     scroll: {
-      paddingTop: topInset + 24,
+      paddingTop: topInset + 56,
       paddingHorizontal: 16,
       paddingBottom: 16,
     },
@@ -437,6 +494,21 @@ function makeStyles(c: Colors, topInset: number, bottomInset: number) {
       fontSize: 11,
       fontWeight: '700',
       color: '#D97706',
+    },
+
+    // Note
+    noteCard: {
+      backgroundColor: c.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 12,
+      marginBottom: 8,
+    },
+    noteInput: {
+      fontSize: 15,
+      color: c.text,
+      minHeight: 80,
     },
 
     // Footer

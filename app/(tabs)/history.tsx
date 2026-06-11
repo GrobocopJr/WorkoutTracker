@@ -20,6 +20,7 @@ import {
   getSessionsForDate,
   getSessionDetail,
   renameSession,
+  saveSessionNote,
   deleteSession,
   getSetting,
 } from '../../src/db/queries';
@@ -90,24 +91,9 @@ export default function HistoryTab() {
   const [loading, setLoading] = useState(true);
   const [renameTarget, setRenameTarget] = useState<Session | null>(null);
   const [renameText, setRenameText] = useState('');
+  const [noteTarget, setNoteTarget] = useState<Session | null>(null);
+  const [noteText, setNoteText] = useState('');
   const [units, setUnits] = useState('lbs');
-
-  const loadCalendar = useCallback(async () => {
-    setLoading(true);
-    const [dates, u] = await Promise.all([
-      getSessionDates(db),
-      getSetting(db, 'units'),
-    ]);
-    if (u) setUnits(u);
-    const marks: Record<string, { marked: boolean; dotColor: string }> = {};
-    for (const d of dates) {
-      marks[d] = { marked: true, dotColor: c.accent };
-    }
-    setMarkedDates(marks);
-    setLoading(false);
-  }, [db, c.accent]);
-
-  useFocusEffect(useCallback(() => { void loadCalendar(); }, [loadCalendar]));
 
   const loadDay = useCallback(
     async (date: string) => {
@@ -121,6 +107,27 @@ export default function HistoryTab() {
     },
     [db]
   );
+
+  const loadCalendar = useCallback(async () => {
+    setLoading(true);
+    const [dates, u] = await Promise.all([
+      getSessionDates(db),
+      getSetting(db, 'units'),
+    ]);
+    if (u) setUnits(u);
+    const marks: Record<string, { marked: boolean; dotColor: string }> = {};
+    for (const d of dates) {
+      marks[d] = { marked: true, dotColor: c.accent };
+    }
+    setMarkedDates(marks);
+    // Auto-select today so the day's sessions are visible on open.
+    const today = new Date().toLocaleDateString('en-CA');
+    setSelectedDate(today);
+    await loadDay(today);
+    setLoading(false);
+  }, [db, c.accent, loadDay]);
+
+  useFocusEffect(useCallback(() => { void loadCalendar(); }, [loadCalendar]));
 
   const handleDayPress = async (day: { dateString: string }) => {
     setSelectedDate(day.dateString);
@@ -156,6 +163,19 @@ export default function HistoryTab() {
     await renameSession(db, renameTarget.id, renameText);
     setRenameTarget(null);
     setRenameText('');
+    if (selectedDate) await loadDay(selectedDate);
+  };
+
+  const openNoteEdit = (session: Session) => {
+    setNoteTarget(session);
+    setNoteText(session.notes ?? '');
+  };
+
+  const handleSaveNote = async () => {
+    if (!noteTarget) return;
+    await saveSessionNote(db, noteTarget.id, noteText);
+    setNoteTarget(null);
+    setNoteText('');
     if (selectedDate) await loadDay(selectedDate);
   };
 
@@ -212,7 +232,14 @@ export default function HistoryTab() {
               return (
               <View key={session.id} style={styles.sessionCard}>
                 <View style={styles.sessionHeader}>
-                  <View style={styles.sessionHeaderMain}>
+                  <TouchableOpacity
+                    style={styles.sessionHeaderMain}
+                    onPress={() => router.push({
+                      pathname: '/workout/summary',
+                      params: { sessionId: String(session.id) },
+                    } as any)}
+                    activeOpacity={0.7}
+                  >
                     <Text style={styles.sessionName}>
                       {session.name?.trim() || 'Workout'}
                     </Text>
@@ -240,7 +267,10 @@ export default function HistoryTab() {
                         </>
                       )}
                     </View>
-                  </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => openNoteEdit(session)} hitSlop={8} style={styles.iconBtn}>
+                    <Ionicons name="document-text-outline" size={20} color={session.notes ? c.accent : c.muted} />
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => openRename(session)} hitSlop={8} style={styles.iconBtn}>
                     <Ionicons name="create-outline" size={20} color={c.muted} />
                   </TouchableOpacity>
@@ -267,6 +297,12 @@ export default function HistoryTab() {
                 {sets.length === 0 && (
                   <Text style={styles.empty}>No sets logged.</Text>
                 )}
+                {session.notes ? (
+                  <TouchableOpacity onPress={() => openNoteEdit(session)} style={styles.noteRow}>
+                    <Ionicons name="document-text-outline" size={13} color={c.muted} />
+                    <Text style={styles.noteText}>{session.notes}</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
               );
             })
@@ -297,6 +333,36 @@ export default function HistoryTab() {
                 <Text style={styles.modalCancel}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSaveRename} style={[styles.modalBtn, styles.modalSaveBtn]}>
+                <Text style={styles.modalSave}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={noteTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoteTarget(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Session Note</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalNoteInput]}
+              value={noteText}
+              onChangeText={setNoteText}
+              placeholder="How did this session go?"
+              placeholderTextColor={c.placeholder}
+              autoFocus
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setNoteTarget(null)} style={styles.modalBtn}>
+                <Text style={styles.modalCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveNote} style={[styles.modalBtn, styles.modalSaveBtn]}>
                 <Text style={styles.modalSave}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -349,6 +415,9 @@ function makeStyles(c: Colors) {
     exerciseName: { fontSize: 15, fontWeight: '600', color: c.text, marginBottom: 2 },
     exerciseNameLink: { color: c.accent },
     setRow: { fontSize: 13, color: c.subtext, marginLeft: 8 },
+    noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.borderLight },
+    noteText: { flex: 1, fontSize: 13, color: c.muted, fontStyle: 'italic', lineHeight: 18 },
+    modalNoteInput: { minHeight: 100, textAlignVertical: 'top' },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',

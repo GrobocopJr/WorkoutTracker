@@ -12,9 +12,11 @@ A personal, offline-first workout tracking app for Android built with React Nati
 - **Resumable sessions** — in-progress workouts survive app reloads; resume or finish from the home tab without navigating to the workout screen
 - **Workout duration timer** — count-up timer starts on first logged set or "Start" tap; pause/resume supported; floating timer chip on every other screen shows live time and taps back to the workout
 - **Exercise notes** — per-exercise notes (cues, grip, settings) persist across sessions
+- **Session notes** — free-text note per workout session; add or edit via the notepad icon in the active workout header or inline on the summary screen; auto-saves as you type; displayed on history session cards
 - **Rest timer** — auto-starts after each logged set with haptic feedback on completion
 - **Volume tracking** — total tonnage (weight × reps) shown on history session cards; updates live as sets are logged
-- **History calendar** — tap a date to review all sets grouped by exercise; rename or delete past workouts; exercise names are tappable links to the detail page; times shown in Chicago time (DST-aware)
+- **History calendar** — opens to today automatically; tap a workout card to view its full summary (stats, PR sets, session note); rename or delete past workouts; exercise names link to the detail page; times in Chicago time (DST-aware)
+- **Workout summary** — shown after finishing a workout and accessible from history; displays duration, total volume, PR sets, and per-exercise set breakdown; session note is editable inline
 - **Personal records** — last weight, best weight, and Epley est. 1RM per exercise; PR sets get a 🏆 badge, gold border, and stronger haptic; best 1RM shown next to exercise titles during a workout (toggleable in Settings)
 - **Progress charts** — line chart on each exercise detail page (max weight, volume, or est. 1RM, pinch to zoom); dedicated comparison screen (chart icon in History header) overlays up to 8 exercises on one chart with a shared date axis and the same metric toggle
 - **Plate calculator** — tap the barbell icon on any set row for a greedy plate breakdown per side with color-coded indicators; editable bar weight; "Load into Set" fills all unsaved sets; respects lbs/kg
@@ -48,7 +50,7 @@ app/
     settings.tsx        # Units, rest timer default, appearance
   workout/
     active.tsx          # Active workout screen: set logging, rest timer, reorder
-    summary.tsx         # Post-workout summary shown after Save & Finish
+    summary.tsx         # Workout summary: stats, PR sets, editable note; reached via finish flow or history tap
   exercises/
     [id].tsx            # Exercise detail: images, muscles, instructions, stats, progress chart
   charts.tsx            # Multi-exercise comparison chart (up to 8 exercises, shared date axis)

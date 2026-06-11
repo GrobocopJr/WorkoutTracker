@@ -19,7 +19,6 @@ Track planned features. Check off items as they are completed.
 ## Workout Experience
 - [ ] **Per-exercise rest timer** — save a default rest duration on each exercise that overrides the global setting; useful when some lifts need 3 min and others need 60 sec
 - [ ] **Time-based sets** — log duration instead of reps for exercises like planks and carries; includes an in-set countdown timer
-- [ ] **Session notes** — free-text note field on the session as a whole (separate from per-exercise notes); for logging context like fatigue level, location, or max-effort attempts
 - [ ] **RPE logging** — optional Rate of Perceived Exertion (1–10) field per set alongside weight and reps
 - [ ] **Superset grouping** — link two exercises together so they alternate sets
 
@@ -28,6 +27,7 @@ Track planned features. Check off items as they are completed.
 - [ ] **Backup / restore** — export and re-import the entire SQLite database as a JSON file
 
 ## Completed
+- [x] **Session notes** — free-text note per workout session (separate from per-exercise notes); added via a text field at the bottom of the active workout screen with auto-save; viewable and editable from history session cards
 - [x] **Offline exercise images** — exercise images are cached to disk by expo-image on first load; detail pages display correctly without Wi-Fi after the initial visit
 - [x] **Progress charts** — SVG line chart on every exercise detail page showing max weight, total volume, or estimated 1RM over time; pinch the chart to zoom the date window in or out; exercise names in the History screen are tappable links to the detail page; a dedicated multi-exercise comparison chart is accessible via the chart icon in the History tab header — add up to eight exercises, each drawn in a distinct color on a shared date axis, with the same pinch-to-zoom and metric toggle
 - [x] **Rest timer auto-start** — rest timer triggers automatically the moment a set is logged
