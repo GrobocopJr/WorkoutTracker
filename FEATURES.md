@@ -16,7 +16,6 @@ Track planned features. Check off items as they are completed.
 
 ## Workout Experience
 - [ ] **Superset grouping** — link two exercises together so they alternate sets
-- [ ] **"Last time" preview** — show the full previous session's sets for an exercise before logging, not just last weight/reps
 - [ ] **Workout templates from history** — turn any past session into a new routine with one tap
 
 ## Data & Export
@@ -24,25 +23,26 @@ Track planned features. Check off items as they are completed.
 - [ ] **Backup / restore** — export and re-import the entire SQLite database as a JSON file
 
 ## Completed
-- [x] **Volume tracking** — total tonnage (weight × reps) summed across all sets, shown on history session cards alongside duration
+- [x] **Last-time auto-fill** — weight and reps fields are pre-filled from your previous session for each exercise in light gray; typing any value instantly commits it as your own entry (gray clears to normal); extra sets beyond the previous session's count inherit the last known values
+- [x] **Volume tracking** — total tonnage (weight x reps) summed across all sets, shown on history session cards alongside duration
 - [x] **Workout duration timer** — elapsed time shown in a bar at the top of the active workout; pause/resume button; timer state (including accumulated paused time) persists across navigation and app reloads via Zustand + SQLite; duration shown on history cards
-- [x] **Plate calculator** — barbell icon on each set row opens a bottom-sheet calculator; greedy plate breakdown per side (largest first); color-coded plate indicators; "Load into Set" writes weight back to the set; "Clear" resets input; respects lbs/kg
-- [x] **PR badges** — trophy icon + "New PR!" label appears inline below a set when its Epley 1RM (`weight × (1 + reps / 30)`) beats the all-time best for that exercise; log button turns amber and the set row gets a gold border; stronger haptic feedback on a PR hit
+- [x] **Plate calculator** — barbell icon on each set row opens a bottom-sheet calculator; greedy plate breakdown per side (largest first); color-coded plate indicators; "Load into Set" writes weight back to all unsaved sets for that exercise; "Clear" resets input; respects lbs/kg
+- [x] **PR badges** — trophy icon + "New PR!" label appears inline below a set when its Epley 1RM (`weight x (1 + reps / 30)`) beats the all-time best for that exercise; log button turns amber and the set row gets a gold border; stronger haptic feedback on a PR hit
 - [x] Exercise library with search, equipment filter, multi-select muscle filter
-- [x] Type-to-filter chips (🔍 icon per filter row)
+- [x] Type-to-filter chips (search icon per filter row)
 - [x] Long-press to favorite equipment / muscle chips (float to front, persisted)
 - [x] Long-press to favorite exercises (float to front, persisted)
-- [x] Clear button (✕) in exercise search box
+- [x] Clear button in exercise search box
 - [x] Card-style rows in Add Exercise picker
 - [x] Custom exercise creation with equipment + muscle tags
 - [x] Rename exercise mid-workout, option to save permanently
 - [x] Delete custom exercises (app-seeded exercises protected)
 - [x] Routine builder — create, rename, delete routines
-- [x] Drag-to-reorder routines (☰ handle, persisted)
+- [x] Drag-to-reorder routines (handle, persisted)
 - [x] Active workout — log sets with weight and reps, auto-filled from last session
 - [x] Add / remove sets per exercise
 - [x] Remove exercise from active workout
-- [x] Drag-to-reorder exercises in active workout (☰ handle)
+- [x] Drag-to-reorder exercises in active workout (handle)
 - [x] Collapse / expand exercises (chevron tap or double-tap title)
 - [x] Per-exercise notes (tied to exercise, reappear each session)
 - [x] Smart routines — sync exercises + set counts back to routine after workout
