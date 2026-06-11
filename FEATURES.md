@@ -8,7 +8,6 @@ Track planned features. Check off items as they are completed.
 ## Quality of Life
 - [x] **Workout duration timer** — elapsed time shown in a bar at the top of the active workout; pause/resume button; timer state (including accumulated paused time) persists across navigation and app reloads via Zustand + SQLite; duration shown on history cards
 - [ ] **Rest timer auto-start** — auto-trigger the rest timer the moment a set is logged
-- [ ] **Plate calculator** — given a target weight and available plates, show exactly what to load on each side of the bar
 - [ ] **Set completion checkmarks** — visually tick off each set as you log it so you don't lose your place mid-workout
 
 ## Progress & Motivation
@@ -27,6 +26,7 @@ Track planned features. Check off items as they are completed.
 - [ ] **Backup / restore** — export and re-import the entire SQLite database as a JSON file
 
 ## Completed
+- [x] **Plate calculator** — barbell icon on each set row opens a bottom-sheet calculator; greedy plate breakdown per side (largest first); color-coded plate indicators; "Load into Set" writes weight back to the set; "Clear" resets input; respects lbs/kg
 - [x] **PR badges** — trophy icon + "New PR!" label appears inline below a set when its Epley 1RM (`weight × (1 + reps / 30)`) beats the all-time best for that exercise; log button turns amber and the set row gets a gold border; stronger haptic feedback on a PR hit
 - [x] Exercise library with search, equipment filter, multi-select muscle filter
 - [x] Type-to-filter chips (🔍 icon per filter row)

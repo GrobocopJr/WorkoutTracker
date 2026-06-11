@@ -35,6 +35,7 @@ import {
 } from '../../src/db/queries';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { ExercisePicker } from '../../src/components/ExercisePicker';
+import { PlateCalculator } from '../../src/components/PlateCalculator';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { Exercise, ActiveExercise } from '../../src/types';
@@ -657,6 +658,8 @@ function ExerciseBody({
   onAddSet,
   onRemoveSet,
 }: ExerciseBodyProps) {
+  const [calcTarget, setCalcTarget] = useState<{ weight: string; setIndex: number } | null>(null);
+
   return (
     <>
       <TextInput
@@ -714,6 +717,13 @@ function ExerciseBody({
                   color="#fff"
                 />
               </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setCalcTarget({ weight: set.weight, setIndex: idx })}
+                hitSlop={8}
+                style={styles.barbellBtn}
+              >
+                <Ionicons name="barbell-outline" size={18} color={c.muted} />
+              </TouchableOpacity>
             </View>
             {isPR && (
               <View style={styles.prBadge}>
@@ -737,6 +747,17 @@ function ExerciseBody({
           </TouchableOpacity>
         )}
       </View>
+
+      <PlateCalculator
+        key={calcTarget ? `${calcTarget.setIndex}:${calcTarget.weight}` : ''}
+        visible={calcTarget !== null}
+        initialWeight={calcTarget?.weight ?? ''}
+        units={units}
+        onApply={(w) => {
+          if (calcTarget) updateSet(ex.exercise_id, calcTarget.setIndex, 'weight', w);
+        }}
+        onClose={() => setCalcTarget(null)}
+      />
     </>
   );
 }
@@ -835,6 +856,7 @@ function makeStyles(c: Colors) {
       marginBottom: 8,
     },
     prText: { color: '#F59E0B', fontSize: 12, fontWeight: '700' },
+    barbellBtn: { width: 28, alignItems: 'center', justifyContent: 'center' },
     setActions: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 4 },
     addSetBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6 },
     addSetText: { color: c.accent, fontWeight: '600' },

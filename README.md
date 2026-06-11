@@ -15,6 +15,7 @@ A personal, offline-first workout tracking app for Android built with React Nati
 - **Rest timer** — automatic countdown after each logged set with haptic feedback on completion
 - **History calendar** — tap any date to see every set logged that day, grouped by exercise; rename or delete past workouts, with start/end times shown in Chicago time (America/Chicago, DST-aware)
 - **Personal records** — per-exercise stats including last weight used, best weight, and estimated 1RM via the Epley formula; when a logged set beats your all-time best 1RM a 🏆 "New PR!" badge appears inline on that set row with a gold border, amber log button, and stronger haptic feedback; current best 1RM shown in faint text next to each exercise title during a workout (toggled via Settings)
+- **Plate calculator** — tap the barbell icon on any set row to open a bottom-sheet calculator; enter a target weight and it shows exactly which plates to load on each side of the bar using a greedy algorithm (largest plates first); color-coded plate indicators (red=45, yellow=35, green=25, white=10, blue=5, gray=2.5); "Load into Set" writes the weight back to the set field; "Clear" resets the input; respects lbs/kg units setting
 - **Dark mode** — System / Light / Dark toggle in Settings, persisted across launches
 - **Show 1RM in Workout** — On/Off toggle in Settings to show or hide the best 1RM next to each exercise title during a workout
 - **Weight units** — lbs or kg, app-wide
@@ -59,8 +60,9 @@ src/
     workoutStore.ts     # Zustand: active session, sets, rest timer
     themeStore.ts       # Zustand: theme override (system/light/dark)
   components/
-    ExercisePicker.tsx  # Shared modal picker: search + equipment + multi-select muscle filters
-    ExerciseEditor.tsx  # Modal form to create a custom exercise with equipment + muscle tags
+    ExercisePicker.tsx    # Shared modal picker: search + equipment + multi-select muscle filters
+    ExerciseEditor.tsx    # Modal form to create a custom exercise with equipment + muscle tags
+    PlateCalculator.tsx   # Bottom-sheet plate calculator: greedy plate breakdown per side
   theme.ts              # Color palettes + useColors() / useIsDark() hooks
   types/
     index.ts            # TypeScript interfaces for all domain models
