@@ -147,8 +147,8 @@ function AppShell() {
   const c = useColors();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg }}>
+      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={c.bg} />
       <Stack
         screenOptions={{
           headerShown: false,
