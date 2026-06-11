@@ -187,7 +187,7 @@ export default function WorkoutTab() {
         disabled={workoutStarted}
       >
         <Ionicons name="add-circle-outline" size={20} color="#fff" />
-        <Text style={styles.emptyBtnText}>Start Empty Workout</Text>
+        <Text style={styles.emptyBtnText}>Start New Workout Routine</Text>
       </TouchableOpacity>
 
       {activeSessionId != null && (
