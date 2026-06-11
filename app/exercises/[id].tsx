@@ -7,10 +7,10 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
-  Image,
   Modal,
   StatusBar,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -126,7 +126,8 @@ export default function ExerciseDetail() {
               <Image
                 source={{ uri: imgUri }}
                 style={styles.image}
-                resizeMode="contain"
+                contentFit="contain"
+                cachePolicy="disk"
                 onError={() => setImgError(true)}
               />
             </TouchableOpacity>
@@ -258,7 +259,8 @@ export default function ExerciseDetail() {
           <Image
             source={{ uri: imgUri }}
             style={styles.fsImage}
-            resizeMode="contain"
+            contentFit="contain"
+            cachePolicy="disk"
           />
           <TouchableOpacity
             style={styles.fsClose}

@@ -7,7 +7,6 @@ Track planned features. Check off items as they are completed.
 
 ## Quality of Life
 - [ ] **Bulk weight edit** — change the weight across all sets of an exercise at once from the active workout screen
-- [ ] **Offline exercise images** — cache exercise images locally on first load so detail pages work without Wi-Fi
 
 ## Progress & Motivation
 - [ ] **Muscle group volume dashboard** — weekly tonnage broken down by muscle group using the muscle tags already on each exercise; visualize training balance across chest, back, legs, etc.
@@ -29,6 +28,7 @@ Track planned features. Check off items as they are completed.
 - [ ] **Backup / restore** — export and re-import the entire SQLite database as a JSON file
 
 ## Completed
+- [x] **Offline exercise images** — exercise images are cached to disk by expo-image on first load; detail pages display correctly without Wi-Fi after the initial visit
 - [x] **Progress charts** — SVG line chart on every exercise detail page showing max weight, total volume, or estimated 1RM over time; pinch the chart to zoom the date window in or out; exercise names in the History screen are tappable links to the detail page; a dedicated multi-exercise comparison chart is accessible via the chart icon in the History tab header — add up to eight exercises, each drawn in a distinct color on a shared date axis, with the same pinch-to-zoom and metric toggle
 - [x] **Rest timer auto-start** — rest timer triggers automatically the moment a set is logged
 - [x] **Set completion checkmarks** — logged sets show a filled green checkmark and a tinted background row; tapping the checkmark or re-entering a field un-logs the set for editing
