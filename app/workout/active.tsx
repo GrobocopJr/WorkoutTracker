@@ -86,6 +86,10 @@ export default function ActiveWorkout() {
   const [workoutStartMs, setWorkoutStartMs] = useState<number | null>(null);
   // Incremented every second when running; used only to trigger re-renders.
   const [, setTick] = useState(0);
+  // True once the user presses Start or logs their first set.
+  const [workoutStarted, setWorkoutStarted] = useState(
+    () => durationPausedMs > 0 || exercises.some((ex) => ex.sets.some((s) => s.saved))
+  );
   const [pickerVisible, setPickerVisible] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
@@ -115,9 +119,9 @@ export default function ActiveWorkout() {
     });
   }, [db]);
 
-  // Fetch the session's started_at so we can compute elapsed time.
+  // For resumed sessions, load started_at from DB so elapsed time is correct.
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !workoutStarted || workoutStartMs !== null) return;
     db.getFirstAsync<{ started_at: string }>(
       'SELECT started_at FROM sessions WHERE id = ?',
       [sessionId]
@@ -126,14 +130,20 @@ export default function ActiveWorkout() {
         setWorkoutStartMs(new Date(row.started_at.replace(' ', 'T') + 'Z').getTime());
       }
     });
-  }, [db, sessionId]);
+  }, [db, sessionId, workoutStarted]);
 
   // Tick once per second to keep the elapsed display current (only when running).
   useEffect(() => {
-    if (durationPaused) return;
+    if (!workoutStarted || durationPaused) return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
-  }, [durationPaused]);
+  }, [workoutStarted, durationPaused]);
+
+  const startWorkout = useCallback(() => {
+    if (workoutStarted) return;
+    setWorkoutStarted(true);
+    setWorkoutStartMs(Date.now());
+  }, [workoutStarted]);
 
   // Fetch best 1RM for every exercise currently in the workout.
   const loadBest1RMs = useCallback(async () => {
@@ -192,6 +202,7 @@ export default function ActiveWorkout() {
       Alert.alert('Invalid input', 'Please enter valid weight and reps.');
       return;
     }
+    startWorkout();
     // Capture the previous best 1RM before this set is written to DB.
     const prevBest = await getBest1RM(db, exerciseId);
     const newId = await logSet(db, sessionId, exerciseId, setNumber, w, r);
@@ -402,17 +413,19 @@ export default function ActiveWorkout() {
       <View style={styles.durationBar}>
         <Ionicons name="time-outline" size={15} color={c.muted} />
         <Text style={styles.durationText}>{formatElapsed(elapsedSeconds)}</Text>
-        <TouchableOpacity
-          onPress={durationPaused ? resumeDuration : pauseDuration}
-          hitSlop={10}
-          style={styles.durationToggle}
-        >
-          <Ionicons
-            name={durationPaused ? 'play-circle-outline' : 'pause-circle-outline'}
-            size={20}
-            color={durationPaused ? c.accent : c.muted}
-          />
-        </TouchableOpacity>
+        {workoutStarted && (
+          <TouchableOpacity
+            onPress={durationPaused ? resumeDuration : pauseDuration}
+            hitSlop={10}
+            style={styles.durationToggle}
+          >
+            <Ionicons
+              name={durationPaused ? 'play-circle-outline' : 'pause-circle-outline'}
+              size={20}
+              color={durationPaused ? c.accent : c.muted}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       <GestureHandlerRootView style={styles.scroll}>
@@ -453,9 +466,15 @@ export default function ActiveWorkout() {
           <Ionicons name="add-circle-outline" size={20} color={c.accent} />
           <Text style={styles.addExText}>Add Exercise</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.finishBtn} onPress={handleFinish}>
-          <Text style={styles.finishText}>Finish</Text>
-        </TouchableOpacity>
+        {workoutStarted ? (
+          <TouchableOpacity style={styles.finishBtn} onPress={handleFinish}>
+            <Text style={styles.finishText}>Finish</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.startBtn} onPress={startWorkout}>
+            <Text style={styles.startText}>Start</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ExercisePicker
@@ -970,6 +989,15 @@ function makeStyles(c: Colors, bottomInset: number = 0) {
       justifyContent: 'center',
     },
     finishText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    startBtn: {
+      flex: 1,
+      backgroundColor: '#22C55E',
+      borderRadius: 10,
+      padding: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    startText: { color: '#fff', fontWeight: '700', fontSize: 15 },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
