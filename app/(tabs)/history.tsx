@@ -21,6 +21,7 @@ import {
   getSessionDetail,
   renameSession,
   deleteSession,
+  getSetting,
 } from '../../src/db/queries';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
@@ -87,10 +88,15 @@ export default function HistoryTab() {
   const [loading, setLoading] = useState(true);
   const [renameTarget, setRenameTarget] = useState<Session | null>(null);
   const [renameText, setRenameText] = useState('');
+  const [units, setUnits] = useState('lbs');
 
   const loadCalendar = useCallback(async () => {
     setLoading(true);
-    const dates = await getSessionDates(db);
+    const [dates, u] = await Promise.all([
+      getSessionDates(db),
+      getSetting(db, 'units'),
+    ]);
+    if (u) setUnits(u);
     const marks: Record<string, { marked: boolean; dotColor: string }> = {};
     for (const d of dates) {
       marks[d] = { marked: true, dotColor: c.accent };
@@ -199,7 +205,9 @@ export default function HistoryTab() {
           {sessionDetails.length === 0 ? (
             <Text style={styles.empty}>No workouts on this day.</Text>
           ) : (
-            sessionDetails.map(({ session, sets }) => (
+            sessionDetails.map(({ session, sets }) => {
+              const volume = sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+              return (
               <View key={session.id} style={styles.sessionCard}>
                 <View style={styles.sessionHeader}>
                   <View style={styles.sessionHeaderMain}>
@@ -217,6 +225,15 @@ export default function HistoryTab() {
                           <Ionicons name="time-outline" size={12} color={c.muted} />
                           <Text style={styles.sessionTime}>
                             {formatDuration(session.started_at, session.ended_at)}
+                          </Text>
+                        </>
+                      )}
+                      {volume > 0 && (
+                        <>
+                          <Text style={styles.sessionMetaDot}>·</Text>
+                          <Ionicons name="barbell-outline" size={12} color={c.muted} />
+                          <Text style={styles.sessionTime}>
+                            {volume.toLocaleString()} {units}
                           </Text>
                         </>
                       )}
@@ -244,7 +261,8 @@ export default function HistoryTab() {
                   <Text style={styles.empty}>No sets logged.</Text>
                 )}
               </View>
-            ))
+              );
+            })
           )}
         </View>
       )}

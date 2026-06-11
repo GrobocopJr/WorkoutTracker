@@ -6,13 +6,11 @@ Track planned features. Check off items as they are completed.
 <!-- none -->
 
 ## Quality of Life
-- [x] **Workout duration timer** — elapsed time shown in a bar at the top of the active workout; pause/resume button; timer state (including accumulated paused time) persists across navigation and app reloads via Zustand + SQLite; duration shown on history cards
 - [ ] **Rest timer auto-start** — auto-trigger the rest timer the moment a set is logged
 - [ ] **Set completion checkmarks** — visually tick off each set as you log it so you don't lose your place mid-workout
 
 ## Progress & Motivation
 - [ ] **Progress charts** — line graph of weight or volume over time per exercise, viewable from the exercise detail screen
-- [ ] **Volume tracking** — total tonnage (sets × reps × weight) per session, shown in history
 - [ ] **Warm-up sets** — mark a set as warm-up so it's excluded from PR calculations and stats
 - [ ] **Body weight exercises** — option to log bodyweight + added weight or just reps with no weight
 
@@ -26,6 +24,8 @@ Track planned features. Check off items as they are completed.
 - [ ] **Backup / restore** — export and re-import the entire SQLite database as a JSON file
 
 ## Completed
+- [x] **Volume tracking** — total tonnage (weight × reps) summed across all sets, shown on history session cards alongside duration
+- [x] **Workout duration timer** — elapsed time shown in a bar at the top of the active workout; pause/resume button; timer state (including accumulated paused time) persists across navigation and app reloads via Zustand + SQLite; duration shown on history cards
 - [x] **Plate calculator** — barbell icon on each set row opens a bottom-sheet calculator; greedy plate breakdown per side (largest first); color-coded plate indicators; "Load into Set" writes weight back to the set; "Clear" resets input; respects lbs/kg
 - [x] **PR badges** — trophy icon + "New PR!" label appears inline below a set when its Epley 1RM (`weight × (1 + reps / 30)`) beats the all-time best for that exercise; log button turns amber and the set row gets a gold border; stronger haptic feedback on a PR hit
 - [x] Exercise library with search, equipment filter, multi-select muscle filter

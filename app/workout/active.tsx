@@ -8,6 +8,8 @@ import {
   Alert,
   Modal,
   Vibration,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReorderableList, {
@@ -93,6 +95,15 @@ export default function ActiveWorkout() {
   }, []);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTimerRunning = useRef(false);
+  const listRef = useRef<any>(null);
+
+  const scrollToExercise = useCallback((index: number) => {
+    setTimeout(() => {
+      try {
+        listRef.current?.scrollToIndex({ index, animated: true, viewOffset: 20 });
+      } catch {}
+    }, 150);
+  }, []);
 
   useEffect(() => {
     Promise.all([getSetting(db, 'units'), getSetting(db, 'show_1rm')]).then(([u, s]) => {
@@ -373,7 +384,10 @@ export default function ActiveWorkout() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       {(timerRunning || timerSeconds > 0) && (
         <View style={[styles.timerBanner, timerSeconds === 0 && styles.timerDone]}>
           <Ionicons
@@ -408,6 +422,7 @@ export default function ActiveWorkout() {
 
       <GestureHandlerRootView style={styles.scroll}>
         <ReorderableList
+          ref={listRef}
           data={exercises}
           onReorder={handleReorder}
           keyExtractor={(item) => item.exercise_id}
@@ -416,7 +431,7 @@ export default function ActiveWorkout() {
           ListEmptyComponent={
             <Text style={styles.empty}>Tap "Add Exercise" below to start logging.</Text>
           }
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <ExerciseCard
               ex={item}
               units={units}
@@ -432,6 +447,7 @@ export default function ActiveWorkout() {
               onAddSet={handleAddSet}
               onRemoveSet={handleRemoveSet}
               onRemoveExercise={handleRemoveExercise}
+              onInputFocus={() => scrollToExercise(index)}
             />
           )}
         />
@@ -482,7 +498,7 @@ export default function ActiveWorkout() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -517,6 +533,7 @@ interface ExerciseCardProps {
   onAddSet: (ex: ActiveExercise) => void;
   onRemoveSet: (exerciseId: string) => void;
   onRemoveExercise: (exerciseId: string, name: string) => void;
+  onInputFocus: () => void;
 }
 
 function ExerciseCard({
@@ -534,6 +551,7 @@ function ExerciseCard({
   onAddSet,
   onRemoveSet,
   onRemoveExercise,
+  onInputFocus,
 }: ExerciseCardProps) {
   const db = useSQLiteContext();
   const updateSet = useWorkoutStore((s) => s.updateSet);
@@ -619,6 +637,7 @@ function ExerciseCard({
           onLog={onLog}
           onAddSet={onAddSet}
           onRemoveSet={onRemoveSet}
+          onInputFocus={onInputFocus}
         />
       )}
     </View>
@@ -643,6 +662,7 @@ interface ExerciseBodyProps {
   ) => void;
   onAddSet: (ex: ActiveExercise) => void;
   onRemoveSet: (exerciseId: string) => void;
+  onInputFocus: () => void;
 }
 
 function ExerciseBody({
@@ -657,6 +677,7 @@ function ExerciseBody({
   onLog,
   onAddSet,
   onRemoveSet,
+  onInputFocus,
 }: ExerciseBodyProps) {
   const [calcTarget, setCalcTarget] = useState<{ weight: string; setIndex: number } | null>(null);
 
@@ -693,6 +714,8 @@ function ExerciseBody({
                 placeholder="0"
                 placeholderTextColor={c.placeholder}
                 editable={!set.saved}
+                selectTextOnFocus
+                onFocus={onInputFocus}
               />
               <TextInput
                 style={[styles.setInput, { flex: 1.5 }]}
@@ -702,6 +725,8 @@ function ExerciseBody({
                 placeholder="0"
                 placeholderTextColor={c.placeholder}
                 editable={!set.saved}
+                selectTextOnFocus
+                onFocus={onInputFocus}
               />
               <TouchableOpacity
                 style={[styles.logBtn, set.saved && styles.logBtnSaved, isPR && styles.logBtnPR]}
@@ -754,7 +779,9 @@ function ExerciseBody({
         initialWeight={calcTarget?.weight ?? ''}
         units={units}
         onApply={(w) => {
-          if (calcTarget) updateSet(ex.exercise_id, calcTarget.setIndex, 'weight', w);
+          ex.sets.forEach((set, i) => {
+            if (!set.saved) updateSet(ex.exercise_id, i, 'weight', w);
+          });
         }}
         onClose={() => setCalcTarget(null)}
       />
