@@ -361,6 +361,27 @@ export async function deleteSet(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync('DELETE FROM sets WHERE id = ?', [id]);
 }
 
+export async function getLastSessionSets(
+  db: SQLiteDatabase,
+  exerciseId: string,
+  currentSessionId: number
+): Promise<{ set_number: number; weight: number; reps: number }[]> {
+  return db.getAllAsync(
+    `SELECT s.set_number, s.weight, s.reps
+     FROM sets s
+     WHERE s.exercise_id = ?
+       AND s.session_id != ?
+       AND s.session_id = (
+         SELECT session_id FROM sets
+         WHERE exercise_id = ? AND session_id != ?
+         ORDER BY logged_at DESC
+         LIMIT 1
+       )
+     ORDER BY s.set_number`,
+    [exerciseId, currentSessionId, exerciseId, currentSessionId]
+  );
+}
+
 export async function getLastSet(
   db: SQLiteDatabase,
   exerciseId: string

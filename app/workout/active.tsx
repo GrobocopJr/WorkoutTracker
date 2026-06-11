@@ -26,6 +26,7 @@ import {
   endSession,
   getSetting,
   getLastSet,
+  getLastSessionSets,
   getBest1RM,
   deleteSet,
   getExerciseNote,
@@ -142,19 +143,6 @@ export default function ActiveWorkout() {
 
   useEffect(() => { void loadBest1RMs(); }, [exercises.length]);
 
-  useEffect(() => {
-    exercises.forEach((ex) => {
-      ex.sets.forEach(async (set, idx) => {
-        if (set.weight === '' && set.reps === '' && !set.saved) {
-          const last = await getLastSet(db, ex.exercise_id);
-          if (last) {
-            updateSet(ex.exercise_id, idx, 'weight', String(last.weight));
-            updateSet(ex.exercise_id, idx, 'reps', String(last.reps));
-          }
-        }
-      });
-    });
-  }, [exercises.length]);
 
   useEffect(() => {
     if (timerRunning) {
@@ -680,6 +668,23 @@ function ExerciseBody({
   onInputFocus,
 }: ExerciseBodyProps) {
   const [calcTarget, setCalcTarget] = useState<{ weight: string; setIndex: number } | null>(null);
+  const [lastSets, setLastSets] = useState<{ set_number: number; weight: number; reps: number }[]>([]);
+  const sessionId = useWorkoutStore((s) => s.sessionId);
+  const suggestSet = useWorkoutStore((s) => s.suggestSet);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    getLastSessionSets(db, ex.exercise_id, sessionId).then(setLastSets);
+  }, [db, ex.exercise_id, sessionId]);
+
+  useEffect(() => {
+    if (lastSets.length === 0) return;
+    ex.sets.forEach((set, idx) => {
+      if (set.saved || set.weight !== '' || set.reps !== '') return;
+      const ref = lastSets[idx] ?? lastSets[lastSets.length - 1];
+      suggestSet(ex.exercise_id, idx, String(ref.weight), String(ref.reps));
+    });
+  }, [lastSets]);
 
   return (
     <>
@@ -693,7 +698,7 @@ function ExerciseBody({
         multiline
       />
 
-      <View style={styles.setHeader}>
+<View style={styles.setHeader}>
         <Text style={styles.setHeaderCell}>Set</Text>
         <Text style={[styles.setHeaderCell, { flex: 2 }]}>Weight ({units})</Text>
         <Text style={[styles.setHeaderCell, { flex: 1.5 }]}>Reps</Text>
@@ -707,7 +712,7 @@ function ExerciseBody({
             <View style={[styles.setRow, set.saved && styles.setRowSaved, isPR && styles.setRowPR]}>
               <Text style={styles.setNum}>{set.set_number}</Text>
               <TextInput
-                style={[styles.setInput, { flex: 2 }]}
+                style={[styles.setInput, { flex: 2, color: set.isSuggested ? c.placeholder : c.text }]}
                 value={set.weight}
                 onChangeText={(v) => updateSet(ex.exercise_id, idx, 'weight', v)}
                 keyboardType="decimal-pad"
@@ -718,7 +723,7 @@ function ExerciseBody({
                 onFocus={onInputFocus}
               />
               <TextInput
-                style={[styles.setInput, { flex: 1.5 }]}
+                style={[styles.setInput, { flex: 1.5, color: set.isSuggested ? c.placeholder : c.text }]}
                 value={set.reps}
                 onChangeText={(v) => updateSet(ex.exercise_id, idx, 'reps', v)}
                 keyboardType="number-pad"
@@ -848,6 +853,26 @@ function makeStyles(c: Colors) {
       color: c.muted,
       paddingVertical: 2,
       marginBottom: 8,
+    },
+    lastTimeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 8,
+      paddingHorizontal: 2,
+    },
+    lastTimeLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      flexShrink: 0,
+    },
+    lastTimeSets: {
+      fontSize: 12,
+      color: c.muted,
+      flexShrink: 1,
     },
     setHeader: { flexDirection: 'row', marginBottom: 4, paddingHorizontal: 2 },
     setHeaderCell: { flex: 1, fontSize: 12, color: c.muted, fontWeight: '600' },

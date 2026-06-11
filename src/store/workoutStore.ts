@@ -30,6 +30,7 @@ interface WorkoutState {
     field: 'weight' | 'reps',
     value: string
   ) => void;
+  suggestSet: (exerciseId: string, setIndex: number, weight: string, reps: string) => void;
   markSetSaved: (exerciseId: string, setIndex: number, id?: number) => void;
   addSetToExercise: (exerciseId: string, exerciseName: string) => void;
   removeLastSet: (exerciseId: string) => void;
@@ -112,7 +113,21 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           : {
               ...ex,
               sets: ex.sets.map((s, i) =>
-                i !== setIndex ? s : { ...s, [field]: value }
+                i !== setIndex ? s : { ...s, [field]: value, isSuggested: false }
+              ),
+            }
+      ),
+    })),
+
+  suggestSet: (exerciseId, setIndex, weight, reps) =>
+    set((state) => ({
+      exercises: state.exercises.map((ex) =>
+        ex.exercise_id !== exerciseId
+          ? ex
+          : {
+              ...ex,
+              sets: ex.sets.map((s, i) =>
+                i !== setIndex || s.saved ? s : { ...s, weight, reps, isSuggested: true }
               ),
             }
       ),
@@ -148,6 +163,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
               weight: lastSet?.weight ?? '',
               reps: lastSet?.reps ?? '',
               saved: false,
+              isSuggested: lastSet?.isSuggested ?? false,
             },
           ],
         };

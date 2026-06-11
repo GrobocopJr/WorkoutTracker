@@ -67,6 +67,7 @@ export interface ActiveSet {
   weight: string;
   reps: string;
   saved: boolean;
+  isSuggested?: boolean; // true when value is auto-filled from last session, false once user edits
 }
 
 export interface ActiveExercise {
