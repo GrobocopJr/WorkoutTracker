@@ -6,8 +6,7 @@ Track planned features. Check off items as they are completed.
 <!-- none -->
 
 ## Quality of Life
-- [ ] **Rest timer auto-start** — auto-trigger the rest timer the moment a set is logged
-- [ ] **Set completion checkmarks** — visually tick off each set as you log it so you don't lose your place mid-workout
+<!-- none -->
 
 ## Progress & Motivation
 - [ ] **Progress charts** — line graph of weight or volume over time per exercise, viewable from the exercise detail screen
@@ -16,13 +15,14 @@ Track planned features. Check off items as they are completed.
 
 ## Workout Experience
 - [ ] **Superset grouping** — link two exercises together so they alternate sets
-- [ ] **Workout templates from history** — turn any past session into a new routine with one tap
 
 ## Data & Export
 - [ ] **CSV export** — dump all logged sets to a file shareable from the history screen
 - [ ] **Backup / restore** — export and re-import the entire SQLite database as a JSON file
 
 ## Completed
+- [x] **Rest timer auto-start** — rest timer triggers automatically the moment a set is logged
+- [x] **Set completion checkmarks** — logged sets show a filled green checkmark and a tinted background row; tapping the checkmark or re-entering a field un-logs the set for editing
 - [x] **Last-time auto-fill** — weight and reps fields are pre-filled from your previous session for each exercise in light gray; typing any value instantly commits it as your own entry (gray clears to normal); extra sets beyond the previous session's count inherit the last known values
 - [x] **Volume tracking** — total tonnage (weight x reps) summed across all sets, shown on history session cards alongside duration
 - [x] **Workout duration timer** — elapsed time shown in a bar at the top of the active workout; timer starts only when the user taps "Start" or logs their first set (not on screen open); pause/resume button available after starting; timer state (including accumulated paused time) persists across navigation and app reloads via Zustand + SQLite; duration shown on history cards; resumed sessions restore timer state automatically
