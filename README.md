@@ -16,6 +16,7 @@ A personal, offline-first workout tracking app for Android built with React Nati
 - **Volume tracking** — total tonnage (weight × reps, summed across all sets) shown on each history session card alongside the duration; updates automatically as sets are logged
 - **History calendar** — tap any date to see every set logged that day, grouped by exercise; rename or delete past workouts, with start/end times shown in Chicago time (America/Chicago, DST-aware)
 - **Personal records** — per-exercise stats including last weight used, best weight, and estimated 1RM via the Epley formula; when a logged set beats your all-time best 1RM a 🏆 "New PR!" badge appears inline on that set row with a gold border, amber log button, and stronger haptic feedback; current best 1RM shown in faint text next to each exercise title during a workout (toggled via Settings)
+- **Progress charts** — every exercise detail page shows an SVG line chart of your logged history; toggle between Max Weight, Volume (total tonnage), and Est. 1RM; pinch the chart to zoom the visible date window in or out (minimum 3 sessions); exercise names on the History screen are blue tappable links that jump directly to the detail page; a dedicated **Progress** screen (chart icon in the History tab header) lets you overlay up to eight exercises on a single chart — each drawn in a distinct color on a shared date axis — with the same metric toggle and pinch-to-zoom
 - **Plate calculator** — tap the barbell icon on any set row to open a bottom-sheet calculator; enter a target weight and it shows exactly which plates to load on each side of the bar using a greedy algorithm (largest plates first); color-coded plate indicators (red=45, yellow=35, green=25, white=10, blue=5, gray=2.5); bar weight is editable (defaults to 45 lbs / 20 kg) for non-standard bars; "Load into Set" writes the weight back to all unsaved sets; "Clear" resets the input; respects lbs/kg units setting
 - **Dark mode** — System / Light / Dark toggle in Settings, persisted across launches
 - **Show 1RM in Workout** — On/Off toggle in Settings to show or hide the best 1RM next to each exercise title during a workout
@@ -32,6 +33,7 @@ A personal, offline-first workout tracking app for Android built with React Nati
 | UI | React Native core + @expo/vector-icons (Ionicons) |
 | Calendar | react-native-calendars |
 | Drag & drop | react-native-reorderable-list (gesture-handler + reanimated) |
+| Charts | react-native-svg (custom SVG line charts) |
 | Haptics | expo-haptics + Vibration API |
 
 ## Project Structure
@@ -48,7 +50,8 @@ app/
   workout/
     active.tsx          # Active workout screen: set logging, rest timer
   exercises/
-    [id].tsx            # Exercise detail: muscles, instructions, personal stats
+    [id].tsx            # Exercise detail: muscles, instructions, personal stats, progress chart
+  charts.tsx            # Multi-exercise comparison chart (up to 8 exercises, shared date axis)
   routines/
     [id].tsx            # Routine editor: rename, add/remove exercises
 
@@ -65,6 +68,8 @@ src/
     ExerciseEditor.tsx    # Modal form to create a custom exercise with equipment + muscle tags
     PlateCalculator.tsx   # Bottom-sheet plate calculator: greedy plate breakdown per side
     WorkoutTimerChip.tsx  # Floating timer pill shown on all screens during an active workout
+    ProgressChart.tsx     # Single-exercise SVG line chart with pinch-to-zoom
+    MultiLineChart.tsx    # Multi-exercise SVG line chart with shared date axis + pinch-to-zoom
   theme.ts              # Color palettes + useColors() / useIsDark() hooks
   types/
     index.ts            # TypeScript interfaces for all domain models

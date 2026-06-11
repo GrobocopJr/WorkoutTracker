@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
@@ -146,7 +147,7 @@ function AppShell() {
   const c = useColors();
 
   return (
-    <View style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -174,9 +175,13 @@ function AppShell() {
           name="workout/summary"
           options={{ headerShown: false, presentation: 'card' }}
         />
+        <Stack.Screen
+          name="charts"
+          options={{ headerShown: true, title: 'Progress', presentation: 'card' }}
+        />
       </Stack>
       <WorkoutTimerChip />
-    </View>
+    </GestureHandlerRootView>
   );
 }
 

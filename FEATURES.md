@@ -9,7 +9,6 @@ Track planned features. Check off items as they are completed.
 <!-- none -->
 
 ## Progress & Motivation
-- [ ] **Progress charts** — line graph of weight or volume over time per exercise, viewable from the exercise detail screen
 - [ ] **Warm-up sets** — mark a set as warm-up so it's excluded from PR calculations and stats
 - [ ] **Body weight exercises** — option to log bodyweight + added weight or just reps with no weight
 
@@ -21,6 +20,7 @@ Track planned features. Check off items as they are completed.
 - [ ] **Backup / restore** — export and re-import the entire SQLite database as a JSON file
 
 ## Completed
+- [x] **Progress charts** — SVG line chart on every exercise detail page showing max weight, total volume, or estimated 1RM over time; pinch the chart to zoom the date window in or out; exercise names in the History screen are tappable links to the detail page; a dedicated multi-exercise comparison chart is accessible via the chart icon in the History tab header — add up to eight exercises, each drawn in a distinct color on a shared date axis, with the same pinch-to-zoom and metric toggle
 - [x] **Rest timer auto-start** — rest timer triggers automatically the moment a set is logged
 - [x] **Set completion checkmarks** — logged sets show a filled green checkmark and a tinted background row; tapping the checkmark or re-entering a field un-logs the set for editing
 - [x] **Last-time auto-fill** — weight and reps fields are pre-filled from your previous session for each exercise in light gray; typing any value instantly commits it as your own entry (gray clears to normal); extra sets beyond the previous session's count inherit the last known values

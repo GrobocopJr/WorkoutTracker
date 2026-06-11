@@ -1,6 +1,20 @@
-import { Tabs } from 'expo-router';
+import { TouchableOpacity } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, useIsDark } from '../../src/theme';
+
+function ChartHeaderButton({ color }: { color: string }) {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      onPress={() => router.push('/charts' as any)}
+      style={{ marginRight: 16 }}
+      hitSlop={8}
+    >
+      <Ionicons name="stats-chart-outline" size={22} color={color} />
+    </TouchableOpacity>
+  );
+}
 
 export default function TabLayout() {
   const isDark = useIsDark();
@@ -44,6 +58,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
+          headerRight: () => <ChartHeaderButton color={headerFg} />,
         }}
       />
       <Tabs.Screen

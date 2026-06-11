@@ -329,9 +329,9 @@ export async function getSessionsForDate(
 export async function getSessionDetail(
   db: SQLiteDatabase,
   sessionId: number
-): Promise<{ exercise_name: string; set_number: number; weight: number; reps: number }[]> {
+): Promise<{ exercise_id: string; exercise_name: string; set_number: number; weight: number; reps: number }[]> {
   return db.getAllAsync(
-    `SELECT e.name AS exercise_name, s.set_number, s.weight, s.reps
+    `SELECT s.exercise_id, e.name AS exercise_name, s.set_number, s.weight, s.reps
      FROM sets s
      JOIN exercises e ON e.id = s.exercise_id
      WHERE s.session_id = ?
@@ -424,6 +424,34 @@ export async function getExerciseStat(
     best_weight: best?.best_weight ?? null,
     best_1rm: best?.best_1rm ?? null,
   };
+}
+
+export interface ExerciseHistoryPoint {
+  date: string;
+  session_id: number;
+  max_weight: number;
+  volume: number;
+  best_1rm: number;
+}
+
+export async function getExerciseHistory(
+  db: SQLiteDatabase,
+  exerciseId: string
+): Promise<ExerciseHistoryPoint[]> {
+  return db.getAllAsync<ExerciseHistoryPoint>(
+    `SELECT
+       s.date,
+       s.id AS session_id,
+       MAX(st.weight) AS max_weight,
+       SUM(st.weight * st.reps) AS volume,
+       MAX(st.weight * (1 + st.reps / 30.0)) AS best_1rm
+     FROM sets st
+     JOIN sessions s ON s.id = st.session_id
+     WHERE st.exercise_id = ?
+     GROUP BY s.id
+     ORDER BY s.date ASC, s.started_at ASC`,
+    [exerciseId]
+  );
 }
 
 export async function getSetsForSession(

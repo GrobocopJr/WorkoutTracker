@@ -12,7 +12,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
 import {
@@ -28,6 +28,7 @@ import type { Colors } from '../../src/theme';
 import type { Session } from '../../src/types';
 
 interface SetDetail {
+  exercise_id: string;
   exercise_name: string;
   set_number: number;
   weight: number;
@@ -78,6 +79,7 @@ function formatChicagoTime(utc: string | null): string {
 
 export default function HistoryTab() {
   const db = useSQLiteContext();
+  const router = useRouter();
   const scheme = useColorScheme();
   const c = useColors();
   const styles = useMemo(() => makeStyles(c), [c]);
@@ -247,9 +249,14 @@ export default function HistoryTab() {
                   </TouchableOpacity>
                 </View>
 
-                {groupSetsByExercise(sets).map(({ name, rows }) => (
+                {groupSetsByExercise(sets).map(({ name, id, rows }) => (
                   <View key={name} style={styles.exerciseBlock}>
-                    <Text style={styles.exerciseName}>{name}</Text>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/exercises/${id}` as any)}
+                      hitSlop={4}
+                    >
+                      <Text style={[styles.exerciseName, styles.exerciseNameLink]}>{name}</Text>
+                    </TouchableOpacity>
                     {rows.map((s) => (
                       <Text key={s.set_number} style={styles.setRow}>
                         Set {s.set_number}: {s.weight} × {s.reps} reps
@@ -301,13 +308,13 @@ export default function HistoryTab() {
 }
 
 function groupSetsByExercise(sets: SetDetail[]) {
-  const map = new Map<string, SetDetail[]>();
+  const map = new Map<string, { id: string; rows: SetDetail[] }>();
   for (const s of sets) {
-    const arr = map.get(s.exercise_name) ?? [];
-    arr.push(s);
-    map.set(s.exercise_name, arr);
+    const entry = map.get(s.exercise_name) ?? { id: s.exercise_id, rows: [] };
+    entry.rows.push(s);
+    map.set(s.exercise_name, entry);
   }
-  return Array.from(map.entries()).map(([name, rows]) => ({ name, rows }));
+  return Array.from(map.entries()).map(([name, { id, rows }]) => ({ name, id, rows }));
 }
 
 function makeStyles(c: Colors) {
@@ -340,6 +347,7 @@ function makeStyles(c: Colors) {
     iconBtn: { paddingHorizontal: 6 },
     exerciseBlock: { marginBottom: 8 },
     exerciseName: { fontSize: 15, fontWeight: '600', color: c.text, marginBottom: 2 },
+    exerciseNameLink: { color: c.accent },
     setRow: { fontSize: 13, color: c.subtext, marginLeft: 8 },
     modalBackdrop: {
       flex: 1,

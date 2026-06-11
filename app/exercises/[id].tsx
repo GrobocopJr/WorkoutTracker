@@ -15,10 +15,14 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getExerciseById, getExerciseStat, deleteExercise } from '../../src/db/queries';
+import { getExerciseById, getExerciseStat, getExerciseHistory, deleteExercise } from '../../src/db/queries';
+import { ProgressChart } from '../../src/components/ProgressChart';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { Exercise, ExerciseStat } from '../../src/types';
+import type { ExerciseHistoryPoint } from '../../src/db/queries';
+
+type ChartMetric = 'weight' | 'volume' | '1rm';
 
 export default function ExerciseDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,6 +35,8 @@ export default function ExerciseDetail() {
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [stat, setStat] = useState<ExerciseStat | null>(null);
+  const [history, setHistory] = useState<ExerciseHistoryPoint[]>([]);
+  const [chartMetric, setChartMetric] = useState<ChartMetric>('weight');
   const [loading, setLoading] = useState(true);
   const [imgIndex, setImgIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
@@ -46,10 +52,14 @@ export default function ExerciseDetail() {
 
   useEffect(() => {
     async function load() {
-      const ex = await getExerciseById(db, id);
-      const st = await getExerciseStat(db, id);
+      const [ex, st, hist] = await Promise.all([
+        getExerciseById(db, id),
+        getExerciseStat(db, id),
+        getExerciseHistory(db, id),
+      ]);
       setExercise(ex);
       setStat(st);
+      setHistory(hist);
       if (ex) navigation.setOptions({ title: ex.name });
       setLoading(false);
     }
@@ -75,6 +85,16 @@ export default function ExerciseDetail() {
   const primaryMuscles: string[] = safeJson(exercise.primary_muscles);
   const secondaryMuscles: string[] = safeJson(exercise.secondary_muscles);
   const instructions: string[] = safeJson(exercise.instructions);
+
+  const chartData = history.map((p) => ({
+    date: p.date,
+    value:
+      chartMetric === 'weight'
+        ? p.max_weight
+        : chartMetric === 'volume'
+        ? p.volume
+        : p.best_1rm,
+  }));
 
   const handleDelete = () => {
     Alert.alert(
@@ -165,6 +185,34 @@ export default function ExerciseDetail() {
             )}
           </View>
         )}
+
+        <View style={styles.section}>
+          <View style={styles.chartHeader}>
+            <Text style={styles.sectionTitle}>Progress</Text>
+            <View style={styles.metricToggle}>
+              {(['weight', 'volume', '1rm'] as const).map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[
+                    styles.metricBtn,
+                    chartMetric === m && { backgroundColor: c.accent },
+                  ]}
+                  onPress={() => setChartMetric(m)}
+                >
+                  <Text
+                    style={[
+                      styles.metricBtnText,
+                      { color: chartMetric === m ? '#fff' : c.muted },
+                    ]}
+                  >
+                    {m === 'weight' ? 'Weight' : m === 'volume' ? 'Volume' : '1RM'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <ProgressChart data={chartData} />
+        </View>
 
         {primaryMuscles.length > 0 && (
           <View style={styles.section}>
@@ -365,5 +413,29 @@ function makeStyles(c: Colors, topInset: number) {
       marginHorizontal: 16,
     },
     deleteText: { color: c.danger, fontWeight: '700', fontSize: 15 },
+    chartHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    metricToggle: {
+      flexDirection: 'row',
+      gap: 4,
+      backgroundColor: c.card,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 3,
+    },
+    metricBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    metricBtnText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
   });
 }
