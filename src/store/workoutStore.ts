@@ -8,6 +8,8 @@ interface WorkoutState {
   timerSeconds: number;
   timerRunning: boolean;
   timerDefault: number;
+  workoutStarted: boolean;
+  workoutStartMs: number | null;
   // Workout duration tracking (count-up, pauseable)
   durationPaused: boolean;
   durationPausedMs: number;       // total accumulated paused milliseconds
@@ -31,6 +33,7 @@ interface WorkoutState {
     value: string
   ) => void;
   suggestSet: (exerciseId: string, setIndex: number, weight: string, reps: string) => void;
+  unsaveSet: (exerciseId: string, setIndex: number) => void;
   markSetSaved: (exerciseId: string, setIndex: number, id?: number) => void;
   addSetToExercise: (exerciseId: string, exerciseName: string) => void;
   removeLastSet: (exerciseId: string) => void;
@@ -42,6 +45,8 @@ interface WorkoutState {
   pauseDuration: () => void;
   resumeDuration: () => void;
   setDurationState: (paused: boolean, pausedMs: number, pausedAt: number | null) => void;
+  beginWorkout: () => void;
+  setWorkoutStartMs: (ms: number | null) => void;
 }
 
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
@@ -51,6 +56,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   timerSeconds: 0,
   timerRunning: false,
   timerDefault: 90,
+  workoutStarted: false,
+  workoutStartMs: null,
   durationPaused: false,
   durationPausedMs: 0,
   durationPausedAt: null,
@@ -59,6 +66,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({
       sessionId, routineId, exercises,
       timerSeconds: 0, timerRunning: false,
+      workoutStarted: false, workoutStartMs: null,
       durationPaused: false, durationPausedMs: 0, durationPausedAt: null,
     }),
 
@@ -66,6 +74,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({
       sessionId: null, routineId: null, exercises: [],
       timerSeconds: 0, timerRunning: false,
+      workoutStarted: false, workoutStartMs: null,
       durationPaused: false, durationPausedMs: 0, durationPausedAt: null,
     }),
 
@@ -130,6 +139,18 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
                 i !== setIndex || s.saved ? s : { ...s, weight, reps, isSuggested: true }
               ),
             }
+      ),
+    })),
+
+  unsaveSet: (exerciseId, setIndex) =>
+    set((state) => ({
+      exercises: state.exercises.map((ex) =>
+        ex.exercise_id !== exerciseId ? ex : {
+          ...ex,
+          sets: ex.sets.map((s, i) =>
+            i !== setIndex ? s : { ...s, saved: false, id: undefined, isSuggested: false }
+          ),
+        }
       ),
     })),
 
@@ -211,4 +232,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
   setDurationState: (paused, pausedMs, pausedAt) =>
     set({ durationPaused: paused, durationPausedMs: pausedMs, durationPausedAt: pausedAt }),
+
+  beginWorkout: () => set({ workoutStarted: true }),
+  setWorkoutStartMs: (ms) => set({ workoutStartMs: ms }),
 }));

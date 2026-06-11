@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
@@ -13,6 +14,7 @@ import {
 import { useColors, useIsDark } from '../src/theme';
 import { useThemeStore } from '../src/store/themeStore';
 import { useWorkoutStore } from '../src/store/workoutStore';
+import { WorkoutTimerChip } from '../src/components/WorkoutTimerChip';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { ThemeMode } from '../src/store/themeStore';
 
@@ -91,7 +93,7 @@ function SessionPersister() {
 
   // Restore any saved in-progress session once on launch.
   useEffect(() => {
-    loadActiveSession(db).then((saved) => {
+    loadActiveSession(db).then(async (saved) => {
       if (saved && useWorkoutStore.getState().sessionId == null) {
         const store = useWorkoutStore.getState();
         store.startSession(saved.sessionId, saved.exercises, saved.routineId ?? null);
@@ -100,6 +102,18 @@ function SessionPersister() {
           saved.durationPausedMs ?? 0,
           saved.durationPausedAt ?? null,
         );
+        const hasSavedSets = saved.exercises.some((ex) => ex.sets.some((s) => s.saved));
+        if (hasSavedSets || (saved.durationPausedMs ?? 0) > 0) {
+          store.beginWorkout();
+          const row = await db.getFirstAsync<{ started_at: string }>(
+            'SELECT started_at FROM sessions WHERE id = ?', [saved.sessionId]
+          );
+          if (row) {
+            store.setWorkoutStartMs(
+              new Date(row.started_at.replace(' ', 'T') + 'Z').getTime()
+            );
+          }
+        }
       }
       hydrated.current = true;
     });
@@ -132,7 +146,7 @@ function AppShell() {
   const c = useColors();
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -157,7 +171,8 @@ function AppShell() {
           options={{ headerShown: true, title: 'Edit Routine', presentation: 'card' }}
         />
       </Stack>
-    </>
+      <WorkoutTimerChip />
+    </View>
   );
 }
 

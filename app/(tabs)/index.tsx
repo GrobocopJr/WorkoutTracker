@@ -26,6 +26,7 @@ import {
   createSession,
   getRoutineExercises,
   getExerciseNote,
+  endSession,
 } from '../../src/db/queries';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { useColors } from '../../src/theme';
@@ -37,8 +38,10 @@ type Styles = ReturnType<typeof makeStyles>;
 export default function WorkoutTab() {
   const db = useSQLiteContext();
   const router = useRouter();
-  const { startSession } = useWorkoutStore();
+  const { startSession, endSession: clearSession } = useWorkoutStore();
   const activeSessionId = useWorkoutStore((s) => s.sessionId);
+  const workoutStarted = useWorkoutStore((s) => s.workoutStarted);
+  const activeRoutineId = useWorkoutStore((s) => s.routineId);
   const c = useColors();
   const styles = useMemo(() => makeStyles(c), [c]);
 
@@ -86,6 +89,7 @@ export default function WorkoutTab() {
   };
 
   const handleStartWorkout = async (routine: Routine) => {
+    if (workoutStarted) return;
     const today = new Date().toISOString().slice(0, 10);
     const sessionId = await createSession(db, today, routine.id);
     const rexes = await getRoutineExercises(db, routine.id);
@@ -111,7 +115,46 @@ export default function WorkoutTab() {
     router.push('/workout/active');
   };
 
+  const handleFinishWorkout = () => {
+    Alert.alert('End Workout', 'Save this workout to history or discard it?', [
+      { text: 'Keep Going', style: 'cancel' },
+      {
+        text: 'Discard',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Discard Workout',
+            'Delete all logged sets and remove this workout from history? This cannot be undone.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Discard',
+                style: 'destructive',
+                onPress: async () => {
+                  if (activeSessionId) {
+                    await db.runAsync('DELETE FROM sets WHERE session_id = ?', [activeSessionId]);
+                    await db.runAsync('DELETE FROM sessions WHERE id = ?', [activeSessionId]);
+                  }
+                  clearSession();
+                },
+              },
+            ]
+          );
+        },
+      },
+      {
+        text: 'Save & Finish',
+        onPress: async () => {
+          if (activeSessionId) await endSession(db, activeSessionId);
+          clearSession();
+          router.push('/(tabs)/history');
+        },
+      },
+    ]);
+  };
+
   const handleStartEmpty = async () => {
+    if (workoutStarted) return;
     const today = new Date().toISOString().slice(0, 10);
     const sessionId = await createSession(db, today, null);
     startSession(sessionId, [], null);
@@ -138,10 +181,21 @@ export default function WorkoutTab() {
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.emptyBtn} onPress={handleStartEmpty}>
+      <TouchableOpacity
+        style={[styles.emptyBtn, workoutStarted && styles.disabledBtn]}
+        onPress={handleStartEmpty}
+        disabled={workoutStarted}
+      >
         <Ionicons name="add-circle-outline" size={20} color="#fff" />
         <Text style={styles.emptyBtnText}>Start Empty Workout</Text>
       </TouchableOpacity>
+
+      {activeSessionId != null && (
+        <TouchableOpacity style={styles.finishWorkoutBtn} onPress={handleFinishWorkout}>
+          <Ionicons name="checkmark-done-outline" size={20} color={c.text} />
+          <Text style={styles.finishWorkoutText}>Finish Workout</Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>My Routines</Text>
@@ -159,16 +213,22 @@ export default function WorkoutTab() {
             onReorder={handleReorder}
             keyExtractor={(r) => String(r.id)}
             contentContainerStyle={{ paddingBottom: 20 }}
-            renderItem={({ item }) => (
-              <RoutineCard
-                routine={item}
-                styles={styles}
-                c={c}
-                onStart={() => handleStartWorkout(item)}
-                onEdit={() => router.push(`/routines/${item.id}`)}
-                onDelete={() => handleDelete(item)}
-              />
-            )}
+            renderItem={({ item }) => {
+              const isActive = workoutStarted && item.id === activeRoutineId;
+              const isDisabled = workoutStarted && item.id !== activeRoutineId;
+              return (
+                <RoutineCard
+                  routine={item}
+                  styles={styles}
+                  c={c}
+                  isActive={isActive}
+                  isDisabled={isDisabled}
+                  onStart={() => handleStartWorkout(item)}
+                  onEdit={() => router.push(`/routines/${item.id}`)}
+                  onDelete={() => handleDelete(item)}
+                />
+              );
+            }}
           />
         </GestureHandlerRootView>
       )}
@@ -211,25 +271,29 @@ interface RoutineCardProps {
   routine: Routine;
   styles: Styles;
   c: Colors;
+  isActive?: boolean;
+  isDisabled?: boolean;
   onStart: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function RoutineCard({ routine, styles, c, onStart, onEdit, onDelete }: RoutineCardProps) {
+function RoutineCard({ routine, styles, c, isActive, isDisabled, onStart, onEdit, onDelete }: RoutineCardProps) {
   const drag = useReorderableDrag();
   return (
-    <View style={styles.card}>
-      <TouchableOpacity style={styles.cardMain} onPress={onStart}>
-        <Text style={styles.cardTitle}>{routine.name}</Text>
-        <Text style={styles.cardSub}>Tap to start workout</Text>
+    <View style={[styles.card, isDisabled && styles.cardDisabled]}>
+      <TouchableOpacity style={styles.cardMain} onPress={onStart} disabled={isDisabled}>
+        <Text style={[styles.cardTitle, isDisabled && styles.cardTitleDisabled]}>{routine.name}</Text>
+        <Text style={[styles.cardSub, isDisabled && styles.cardSubDisabled]}>
+          {isActive ? 'In progress' : 'Tap to start workout'}
+        </Text>
       </TouchableOpacity>
       <View style={styles.cardActions}>
         <TouchableOpacity onPress={onEdit} style={styles.iconBtn}>
-          <Ionicons name="create-outline" size={22} color={c.muted} />
+          <Ionicons name="create-outline" size={22} color={isDisabled ? c.border : c.muted} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onDelete} style={styles.iconBtn}>
-          <Ionicons name="trash-outline" size={22} color={c.danger} />
+        <TouchableOpacity onPress={onDelete} style={styles.iconBtn} disabled={isDisabled}>
+          <Ionicons name="trash-outline" size={22} color={isDisabled ? c.border : c.danger} />
         </TouchableOpacity>
         <TouchableOpacity
           onLongPress={drag}
@@ -237,7 +301,7 @@ function RoutineCard({ routine, styles, c, onStart, onEdit, onDelete }: RoutineC
           style={styles.iconBtn}
           hitSlop={8}
         >
-          <Ionicons name="reorder-three-outline" size={24} color={c.muted} />
+          <Ionicons name="reorder-three-outline" size={24} color={isDisabled ? c.border : c.muted} />
         </TouchableOpacity>
       </View>
     </View>
@@ -291,11 +355,27 @@ function makeStyles(c: Colors) {
       shadowOpacity: 0.05,
       shadowRadius: 4,
     },
+    finishWorkoutBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: 14,
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    finishWorkoutText: { color: c.text, fontWeight: '600', fontSize: 15 },
     cardMain: { flex: 1 },
     cardTitle: { fontSize: 16, fontWeight: '600', color: c.text },
     cardSub: { fontSize: 12, color: c.muted, marginTop: 2 },
+    cardDisabled: { opacity: 0.4 },
+    cardTitleDisabled: { color: c.muted },
+    cardSubDisabled: { color: c.border },
     cardActions: { flexDirection: 'row', gap: 4 },
     iconBtn: { padding: 4 },
+    disabledBtn: { opacity: 0.4 },
     overlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',

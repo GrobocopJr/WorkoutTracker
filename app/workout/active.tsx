@@ -61,6 +61,7 @@ export default function ActiveWorkout() {
     stopTimer,
     updateSet,
     markSetSaved,
+    unsaveSet,
     addSetToExercise,
     removeLastSet,
     addExercise,
@@ -74,6 +75,10 @@ export default function ActiveWorkout() {
     durationPausedAt,
     pauseDuration,
     resumeDuration,
+    workoutStarted,
+    workoutStartMs,
+    beginWorkout,
+    setWorkoutStartMs,
   } = useWorkoutStore();
 
   const c = useColors();
@@ -83,13 +88,8 @@ export default function ActiveWorkout() {
   const [units, setUnits] = useState('lbs');
   const [show1RM, setShow1RM] = useState(true);
   const [best1RMs, setBest1RMs] = useState<Record<string, number | null>>({});
-  const [workoutStartMs, setWorkoutStartMs] = useState<number | null>(null);
   // Incremented every second when running; used only to trigger re-renders.
   const [, setTick] = useState(0);
-  // True once the user presses Start or logs their first set.
-  const [workoutStarted, setWorkoutStarted] = useState(
-    () => durationPausedMs > 0 || exercises.some((ex) => ex.sets.some((s) => s.saved))
-  );
   const [pickerVisible, setPickerVisible] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
@@ -112,6 +112,14 @@ export default function ActiveWorkout() {
     }, 150);
   }, []);
 
+  // On mount: if session is already in progress (reload/resume), mark as started in store.
+  useEffect(() => {
+    if (!workoutStarted && (durationPausedMs > 0 || exercises.some((ex) => ex.sets.some((s) => s.saved)))) {
+      beginWorkout();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     Promise.all([getSetting(db, 'units'), getSetting(db, 'show_1rm')]).then(([u, s]) => {
       if (u) setUnits(u);
@@ -130,7 +138,7 @@ export default function ActiveWorkout() {
         setWorkoutStartMs(new Date(row.started_at.replace(' ', 'T') + 'Z').getTime());
       }
     });
-  }, [db, sessionId, workoutStarted]);
+  }, [db, sessionId, workoutStarted, workoutStartMs]);
 
   // Tick once per second to keep the elapsed display current (only when running).
   useEffect(() => {
@@ -141,9 +149,9 @@ export default function ActiveWorkout() {
 
   const startWorkout = useCallback(() => {
     if (workoutStarted) return;
-    setWorkoutStarted(true);
+    beginWorkout();
     setWorkoutStartMs(Date.now());
-  }, [workoutStarted]);
+  }, [workoutStarted, beginWorkout, setWorkoutStartMs]);
 
   // Fetch best 1RM for every exercise currently in the workout.
   const loadBest1RMs = useCallback(async () => {
@@ -228,6 +236,13 @@ export default function ActiveWorkout() {
     startTimer(timerDefault);
   };
 
+  const handleUnsaveSet = useCallback(async (exerciseId: string, setIndex: number, setId?: number) => {
+    if (setId) await deleteSet(db, setId);
+    unsaveSet(exerciseId, setIndex);
+    setPrKeys((prev) => { const n = new Set(prev); n.delete(`${exerciseId}:${setIndex}`); return n; });
+    setCollapsed((prev) => ({ ...prev, [exerciseId]: false }));
+  }, [db, unsaveSet]);
+
   const handleAddSet = (ex: ActiveExercise) => {
     addSetToExercise(ex.exercise_id, ex.exercise_name);
     void syncRoutine(useWorkoutStore.getState().exercises);
@@ -280,11 +295,34 @@ export default function ActiveWorkout() {
     void syncRoutine(next);
   };
 
+  const handleDiscard = () => {
+    Alert.alert(
+      'Discard Workout',
+      'Delete all logged sets and remove this workout from history? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: async () => {
+            if (sessionId) {
+              await db.runAsync('DELETE FROM sets WHERE session_id = ?', [sessionId]);
+              await db.runAsync('DELETE FROM sessions WHERE id = ?', [sessionId]);
+            }
+            clearSession();
+            router.replace('/(tabs)/');
+          },
+        },
+      ]
+    );
+  };
+
   const handleFinish = () => {
-    Alert.alert('Finish Workout', 'End this workout session?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert('End Workout', 'Save this workout to history or discard it?', [
+      { text: 'Keep Going', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: handleDiscard },
       {
-        text: 'Finish',
+        text: 'Save & Finish',
         onPress: async () => {
           if (sessionId) await endSession(db, sessionId);
           clearSession();
@@ -452,6 +490,7 @@ export default function ActiveWorkout() {
               onToggleCollapse={toggleCollapse}
               onRename={openRename}
               onLog={handleLogSet}
+              onUnsave={handleUnsaveSet}
               onAddSet={handleAddSet}
               onRemoveSet={handleRemoveSet}
               onRemoveExercise={handleRemoveExercise}
@@ -544,6 +583,7 @@ interface ExerciseCardProps {
     reps: string,
     setNumber: number
   ) => void;
+  onUnsave: (exerciseId: string, setIndex: number, setId?: number) => void;
   onAddSet: (ex: ActiveExercise) => void;
   onRemoveSet: (exerciseId: string) => void;
   onRemoveExercise: (exerciseId: string, name: string) => void;
@@ -562,6 +602,7 @@ function ExerciseCard({
   onToggleCollapse,
   onRename,
   onLog,
+  onUnsave,
   onAddSet,
   onRemoveSet,
   onRemoveExercise,
@@ -649,6 +690,7 @@ function ExerciseCard({
           updateSet={updateSet}
           updateNote={updateNote}
           onLog={onLog}
+          onUnsave={onUnsave}
           onAddSet={onAddSet}
           onRemoveSet={onRemoveSet}
           onInputFocus={onInputFocus}
@@ -674,6 +716,7 @@ interface ExerciseBodyProps {
     reps: string,
     setNumber: number
   ) => void;
+  onUnsave: (exerciseId: string, setIndex: number, setId?: number) => void;
   onAddSet: (ex: ActiveExercise) => void;
   onRemoveSet: (exerciseId: string) => void;
   onInputFocus: () => void;
@@ -690,6 +733,7 @@ function ExerciseBody({
   updateNote,
   onLog,
   onAddSet,
+  onUnsave,
   onRemoveSet,
   onInputFocus,
 }: ExerciseBodyProps) {
@@ -754,9 +798,11 @@ function ExerciseBody({
                 keyboardType="decimal-pad"
                 placeholder="0"
                 placeholderTextColor={c.placeholder}
-                editable={!set.saved}
                 selectTextOnFocus
-                onFocus={onInputFocus}
+                onFocus={() => {
+                  if (set.saved) onUnsave(ex.exercise_id, idx, set.id);
+                  onInputFocus();
+                }}
               />
               <TextInput
                 style={[styles.setInput, { flex: 1.5, color: set.isSuggested ? c.placeholder : c.text }]}
@@ -765,17 +811,19 @@ function ExerciseBody({
                 keyboardType="number-pad"
                 placeholder="0"
                 placeholderTextColor={c.placeholder}
-                editable={!set.saved}
                 selectTextOnFocus
-                onFocus={onInputFocus}
+                onFocus={() => {
+                  if (set.saved) onUnsave(ex.exercise_id, idx, set.id);
+                  onInputFocus();
+                }}
+                onSubmitEditing={() => onLog(ex.exercise_id, idx, set.weight, set.reps, set.set_number)}
               />
               <TouchableOpacity
                 style={[styles.logBtn, set.saved && styles.logBtnSaved, isPR && styles.logBtnPR]}
-                onPress={() =>
-                  !set.saved &&
-                  onLog(ex.exercise_id, idx, set.weight, set.reps, set.set_number)
-                }
-                disabled={set.saved}
+                onPress={() => {
+                  if (set.saved) onUnsave(ex.exercise_id, idx, set.id);
+                  else onLog(ex.exercise_id, idx, set.weight, set.reps, set.set_number);
+                }}
               >
                 <Ionicons
                   name={set.saved ? 'checkmark' : 'checkmark-outline'}
