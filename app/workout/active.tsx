@@ -674,6 +674,7 @@ function ExerciseBody({
   onRemoveSet,
   onInputFocus,
 }: ExerciseBodyProps) {
+  const router = useRouter();
   const [calcTarget, setCalcTarget] = useState<{ weight: string; setIndex: number } | null>(null);
   const [lastSets, setLastSets] = useState<{ set_number: number; weight: number; reps: number }[]>([]);
   const sessionId = useWorkoutStore((s) => s.sessionId);
@@ -695,15 +696,24 @@ function ExerciseBody({
 
   return (
     <>
-      <TextInput
-        style={styles.noteInput}
-        value={ex.note ?? ''}
-        onChangeText={(v) => updateNote(ex.exercise_id, v)}
-        onEndEditing={(e) => setExerciseNote(db, ex.exercise_id, e.nativeEvent.text)}
-        placeholder="Add a note…"
-        placeholderTextColor={c.placeholder}
-        multiline
-      />
+      <View style={styles.noteRow}>
+        <TouchableOpacity
+          onPress={() => router.push(`/exercises/${ex.exercise_id}` as any)}
+          hitSlop={8}
+          style={styles.infoBtn}
+        >
+          <Ionicons name="information-circle-outline" size={24} color={c.muted} />
+        </TouchableOpacity>
+        <TextInput
+          style={[styles.noteInput, { flex: 1 }]}
+          value={ex.note ?? ''}
+          onChangeText={(v) => updateNote(ex.exercise_id, v)}
+          onEndEditing={(e) => setExerciseNote(db, ex.exercise_id, e.nativeEvent.text)}
+          placeholder="Add a note…"
+          placeholderTextColor={c.placeholder}
+          multiline
+        />
+      </View>
 
 <View style={styles.setHeader}>
         <Text style={styles.setHeaderCell}>Set</Text>
@@ -854,12 +864,21 @@ function makeStyles(c: Colors, bottomInset: number = 0) {
     exercise1RM: { flexShrink: 0, fontSize: 13, color: c.muted, marginLeft: 6 },
     collapsedSummary: { fontSize: 13, color: c.muted, marginTop: 2, marginLeft: 22 },
     dragHandle: { paddingHorizontal: 8 },
+    noteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 8,
+    },
+    infoBtn: {
+      alignSelf: 'flex-start',
+      paddingTop: 2,
+    },
     noteInput: {
       fontSize: 13,
       fontStyle: 'italic',
       color: c.muted,
       paddingVertical: 2,
-      marginBottom: 8,
     },
     lastTimeRow: {
       flexDirection: 'row',

@@ -26,8 +26,10 @@ Track planned features. Check off items as they are completed.
 - [x] **Last-time auto-fill** — weight and reps fields are pre-filled from your previous session for each exercise in light gray; typing any value instantly commits it as your own entry (gray clears to normal); extra sets beyond the previous session's count inherit the last known values
 - [x] **Volume tracking** — total tonnage (weight x reps) summed across all sets, shown on history session cards alongside duration
 - [x] **Workout duration timer** — elapsed time shown in a bar at the top of the active workout; pause/resume button; timer state (including accumulated paused time) persists across navigation and app reloads via Zustand + SQLite; duration shown on history cards
-- [x] **Plate calculator** — barbell icon on each set row opens a bottom-sheet calculator; greedy plate breakdown per side (largest first); color-coded plate indicators; "Load into Set" writes weight back to all unsaved sets for that exercise; "Clear" resets input; respects lbs/kg
+- [x] **Plate calculator** — barbell icon on each set row opens a bottom-sheet calculator; greedy plate breakdown per side (largest first); color-coded plate indicators; editable bar weight field (defaults 45 lbs / 20 kg) for non-standard bars; "Load into Set" writes weight back to all unsaved sets for that exercise; "Clear" resets input; respects lbs/kg
 - [x] **PR badges** — trophy icon + "New PR!" label appears inline below a set when its Epley 1RM (`weight x (1 + reps / 30)`) beats the all-time best for that exercise; log button turns amber and the set row gets a gold border; stronger haptic feedback on a PR hit
+- [x] **Exercise images** — animated start/end position photos on every exercise detail page (sourced from free-exercise-db via jsDelivr CDN); auto-toggles every 1.2 s; tap to pause/resume; tap image to view fullscreen with 90% black backdrop; dismiss by tapping image or X button; ⓘ button in active workout opens exercise detail without leaving the session
+- [x] **Auto-collapse on completion** — an exercise group collapses automatically once all its sets are logged
 - [x] Exercise library with search, equipment filter, multi-select muscle filter
 - [x] Type-to-filter chips (search icon per filter row)
 - [x] Long-press to favorite equipment / muscle chips (float to front, persisted)
