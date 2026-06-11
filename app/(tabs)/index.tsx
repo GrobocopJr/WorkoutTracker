@@ -42,6 +42,9 @@ export default function WorkoutTab() {
   const activeSessionId = useWorkoutStore((s) => s.sessionId);
   const workoutStarted = useWorkoutStore((s) => s.workoutStarted);
   const activeRoutineId = useWorkoutStore((s) => s.routineId);
+  const workoutStartMs = useWorkoutStore((s) => s.workoutStartMs);
+  const durationPausedMs = useWorkoutStore((s) => s.durationPausedMs);
+  const durationPausedAt = useWorkoutStore((s) => s.durationPausedAt);
   const c = useColors();
   const styles = useMemo(() => makeStyles(c), [c]);
 
@@ -145,9 +148,18 @@ export default function WorkoutTab() {
       {
         text: 'Save & Finish',
         onPress: async () => {
-          if (activeSessionId) await endSession(db, activeSessionId);
+          const now = Date.now();
+          const totalPaused = durationPausedMs + (durationPausedAt ? now - durationPausedAt : 0);
+          const durationSecs = workoutStartMs
+            ? Math.max(0, Math.floor((now - workoutStartMs - totalPaused) / 1000))
+            : 0;
+          const sid = activeSessionId;
+          if (sid) await endSession(db, sid);
           clearSession();
-          router.push('/(tabs)/history');
+          router.push({
+            pathname: '/workout/summary',
+            params: { sessionId: String(sid), durationSecs: String(durationSecs) },
+          });
         },
       },
     ]);

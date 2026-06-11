@@ -170,6 +170,10 @@ function AppShell() {
           name="routines/[id]"
           options={{ headerShown: true, title: 'Edit Routine', presentation: 'card' }}
         />
+        <Stack.Screen
+          name="workout/summary"
+          options={{ headerShown: false, presentation: 'card' }}
+        />
       </Stack>
       <WorkoutTimerChip />
     </View>

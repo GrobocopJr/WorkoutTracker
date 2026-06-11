@@ -10,6 +10,7 @@ import {
   Vibration,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReorderableList, {
@@ -103,14 +104,24 @@ export default function ActiveWorkout() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTimerRunning = useRef(false);
   const listRef = useRef<any>(null);
+  const focusedExerciseIdxRef = useRef(-1);
+  const keyboardVisibleRef = useRef(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const scrollToExercise = useCallback((index: number) => {
-    setTimeout(() => {
-      try {
-        listRef.current?.scrollToIndex({ index, animated: true, viewOffset: 20 });
-      } catch {}
-    }, 150);
+  const scrollToExercise = useCallback((idx: number) => {
+    listRef.current?.scrollToIndex({
+      index: idx,
+      viewPosition: 0,
+      animated: true,
+    });
   }, []);
+
+  const handleInputFocus = useCallback((exerciseIdx: number) => {
+    focusedExerciseIdxRef.current = exerciseIdx;
+    if (keyboardVisibleRef.current) {
+      setTimeout(() => scrollToExercise(exerciseIdx), 100);
+    }
+  }, [scrollToExercise]);
 
   // On mount: if session is already in progress (reload/resume), mark as started in store.
   useEffect(() => {
@@ -162,6 +173,22 @@ export default function ActiveWorkout() {
   }, [db, exercises]);
 
   useEffect(() => { void loadBest1RMs(); }, [exercises.length]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      keyboardVisibleRef.current = true;
+      setKeyboardHeight(e.endCoordinates.height);
+      const idx = focusedExerciseIdxRef.current;
+      if (idx >= 0) {
+        setTimeout(() => scrollToExercise(idx), 150);
+      }
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardVisibleRef.current = false;
+      setKeyboardHeight(0);
+    });
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, [scrollToExercise]);
 
 
   useEffect(() => {
@@ -324,9 +351,19 @@ export default function ActiveWorkout() {
       {
         text: 'Save & Finish',
         onPress: async () => {
-          if (sessionId) await endSession(db, sessionId);
+          // Compute final duration before clearing store.
+          const now = Date.now();
+          const totalPaused = durationPausedMs + (durationPausedAt ? now - durationPausedAt : 0);
+          const durationSecs = workoutStartMs
+            ? Math.max(0, Math.floor((now - workoutStartMs - totalPaused) / 1000))
+            : 0;
+          const sid = sessionId;
+          if (sid) await endSession(db, sid);
           clearSession();
-          router.replace('/(tabs)/history');
+          router.replace({
+            pathname: '/workout/summary',
+            params: { sessionId: String(sid), durationSecs: String(durationSecs) },
+          });
         },
       },
     ]);
@@ -472,7 +509,7 @@ export default function ActiveWorkout() {
           data={exercises}
           onReorder={handleReorder}
           keyExtractor={(item) => item.exercise_id}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, keyboardHeight > 0 && { paddingBottom: keyboardHeight }]}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <Text style={styles.empty}>Tap "Add Exercise" below to start logging.</Text>
@@ -494,7 +531,7 @@ export default function ActiveWorkout() {
               onAddSet={handleAddSet}
               onRemoveSet={handleRemoveSet}
               onRemoveExercise={handleRemoveExercise}
-              onInputFocus={() => scrollToExercise(index)}
+              onInputFocus={() => handleInputFocus(index)}
             />
           )}
         />
