@@ -41,8 +41,7 @@ interface PlateResult {
   remainder: number;
 }
 
-function calcPlates(targetWeight: number, units: string): PlateResult {
-  const barWeight = units === 'lbs' ? BAR_LBS : BAR_KG;
+function calcPlates(targetWeight: number, barWeight: number, units: string): PlateResult {
   const available = units === 'lbs' ? PLATES_LBS : PLATES_KG;
   const plates: { weight: number; count: number }[] = [];
   let remaining = (targetWeight - barWeight) / 2;
@@ -72,16 +71,19 @@ export function PlateCalculator({ visible, initialWeight, units, onApply, onClos
   const { bottom: bottomInset } = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(c, bottomInset), [c, bottomInset]);
   const [weightText, setWeightText] = useState(initialWeight);
+  const defaultBar = units === 'lbs' ? BAR_LBS : BAR_KG;
+  const [barText, setBarText] = useState(String(defaultBar));
 
-  const barWeight = units === 'lbs' ? BAR_LBS : BAR_KG;
+  const barWeight = parseFloat(barText);
+  const effectiveBar = isNaN(barWeight) || barWeight < 0 ? defaultBar : barWeight;
   const target = parseFloat(weightText);
-  const valid = !isNaN(target) && target > barWeight;
-  const result = valid ? calcPlates(target, units) : null;
+  const valid = !isNaN(target) && target > effectiveBar;
+  const result = valid ? calcPlates(target, effectiveBar, units) : null;
   const isExact = result ? result.remainder < 0.01 : false;
-  const weightPerSide = valid ? (target - barWeight) / 2 : null;
+  const weightPerSide = valid ? (target - effectiveBar) / 2 : null;
 
   const loadedTotal = result
-    ? barWeight + result.plates.reduce((s, p) => s + p.weight * p.count * 2, 0)
+    ? effectiveBar + result.plates.reduce((s, p) => s + p.weight * p.count * 2, 0)
     : null;
 
   return (
@@ -118,11 +120,23 @@ export function PlateCalculator({ visible, initialWeight, units, onApply, onClos
               <Text style={styles.unitLabel}>{units}</Text>
             </View>
 
-            <Text style={styles.barLabel}>Bar: {barWeight} {units}</Text>
+            <View style={styles.barRow}>
+              <Text style={styles.barLabel}>Bar weight</Text>
+              <TextInput
+                style={styles.barInput}
+                value={barText}
+                onChangeText={setBarText}
+                keyboardType="decimal-pad"
+                placeholder={String(defaultBar)}
+                placeholderTextColor={c.placeholder}
+                selectTextOnFocus
+              />
+              <Text style={styles.barUnit}>{units}</Text>
+            </View>
 
-            {!isNaN(target) && target > 0 && target <= barWeight && (
+            {!isNaN(target) && target > 0 && target <= effectiveBar && (
               <Text style={styles.error}>
-                Weight must exceed the bar ({barWeight} {units})
+                Weight must exceed the bar ({effectiveBar} {units})
               </Text>
             )}
 
@@ -251,10 +265,34 @@ function makeStyles(c: Colors, bottomInset: number) {
       fontWeight: '600',
       width: 36,
     },
+    barRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 16,
+    },
     barLabel: {
       fontSize: 13,
       color: c.muted,
-      marginBottom: 16,
+      flex: 1,
+    },
+    barInput: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      fontSize: 14,
+      fontWeight: '600',
+      textAlign: 'center',
+      backgroundColor: c.inputBg,
+      color: c.text,
+      width: 70,
+    },
+    barUnit: {
+      fontSize: 13,
+      color: c.muted,
+      width: 28,
     },
     error: {
       color: c.danger,
