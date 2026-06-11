@@ -6,13 +6,22 @@ Track planned features. Check off items as they are completed.
 <!-- none -->
 
 ## Quality of Life
-<!-- none -->
+- [ ] **Bulk weight edit** — change the weight across all sets of an exercise at once from the active workout screen
+- [ ] **Offline exercise images** — cache exercise images locally on first load so detail pages work without Wi-Fi
 
 ## Progress & Motivation
+- [ ] **Muscle group volume dashboard** — weekly tonnage broken down by muscle group using the muscle tags already on each exercise; visualize training balance across chest, back, legs, etc.
+- [ ] **Body weight log** — log body weight by date with a line chart; correlate strength progress with body composition over time
+- [ ] **PR history** — log of every time a PR was set per exercise, not just the current best; shows the date and value of each lifetime PR
+- [ ] **Weekly / monthly summary** — stats screen showing workouts per week, total volume, PRs set, and most-trained muscles over a selectable time period
 - [ ] **Warm-up sets** — mark a set as warm-up so it's excluded from PR calculations and stats
 - [ ] **Body weight exercises** — option to log bodyweight + added weight or just reps with no weight
 
 ## Workout Experience
+- [ ] **Per-exercise rest timer** — save a default rest duration on each exercise that overrides the global setting; useful when some lifts need 3 min and others need 60 sec
+- [ ] **Time-based sets** — log duration instead of reps for exercises like planks and carries; includes an in-set countdown timer
+- [ ] **Session notes** — free-text note field on the session as a whole (separate from per-exercise notes); for logging context like fatigue level, location, or max-effort attempts
+- [ ] **RPE logging** — optional Rate of Perceived Exertion (1–10) field per set alongside weight and reps
 - [ ] **Superset grouping** — link two exercises together so they alternate sets
 
 ## Data & Export
