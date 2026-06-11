@@ -223,7 +223,7 @@ export default function WorkoutTab() {
                   c={c}
                   isActive={isActive}
                   isDisabled={isDisabled}
-                  onStart={() => handleStartWorkout(item)}
+                  onStart={() => isActive ? router.push('/workout/active') : handleStartWorkout(item)}
                   onEdit={() => router.push(`/routines/${item.id}`)}
                   onDelete={() => handleDelete(item)}
                 />
