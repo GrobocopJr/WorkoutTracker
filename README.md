@@ -88,13 +88,31 @@ npx expo start
 
 ### Running from WSL2
 
-The Expo dev server binds to a WSL2-internal IP that Android devices on your LAN cannot reach. Use tunnel mode instead:
+The Expo dev server binds to a WSL2-internal IP that Android devices cannot reach directly. Use ADB wireless reverse tunneling instead — this routes Metro traffic from the phone through ADB to WSL2 with no external tunnel service required.
 
-```bash
-npx expo start --tunnel --port 8083
-```
+#### One-time setup
 
-This routes traffic through Expo's servers so the Expo Go QR code works from any network. The first run will prompt to install `@expo/ngrok` — accept it.
+1. On your Android phone: **Developer Options → Wireless Debugging** — enable it
+2. On Windows: download [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools) and extract to `C:\platform-tools`
+3. In WSL2: a helper script is included at `~/expo-connect.sh` — first run requires your phone's wireless debugging IP and port:
+   ```bash
+   ~/expo-connect.sh 192.168.x.x PORT
+   ```
+
+#### Each development session
+
+1. Enable **Wireless Debugging** on your phone and note the IP and port shown on that screen
+2. Run the connect script (just press Enter to reuse the saved IP — only the port changes after toggling Wireless Debugging):
+   ```bash
+   ~/expo-connect.sh PORT
+   ```
+3. Start Metro:
+   ```bash
+   npx expo start --port 8083 --localhost
+   ```
+4. Scan the QR code with Expo Go, or enter `exp://localhost:8083` manually
+
+The `--localhost` flag makes Metro advertise `localhost` in the QR code, which resolves correctly through the ADB reverse tunnel.
 
 Line endings are enforced to LF via `.gitattributes` to prevent CRLF issues when the repo is cloned on Windows and developed in WSL2.
 
