@@ -39,6 +39,7 @@ import {
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { ExercisePicker } from '../../src/components/ExercisePicker';
 import { PlateCalculator } from '../../src/components/PlateCalculator';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../../src/theme';
 import type { Colors } from '../../src/theme';
 import type { Exercise, ActiveExercise } from '../../src/types';
@@ -76,7 +77,8 @@ export default function ActiveWorkout() {
   } = useWorkoutStore();
 
   const c = useColors();
-  const styles = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
 
   const [units, setUnits] = useState('lbs');
   const [show1RM, setShow1RM] = useState(true);
@@ -194,6 +196,11 @@ export default function ActiveWorkout() {
     const prevBest = await getBest1RM(db, exerciseId);
     const newId = await logSet(db, sessionId, exerciseId, setNumber, w, r);
     markSetSaved(exerciseId, setIndex, newId);
+
+    const updatedEx = useWorkoutStore.getState().exercises.find((e) => e.exercise_id === exerciseId);
+    if (updatedEx && updatedEx.sets.length > 0 && updatedEx.sets.every((s) => s.saved)) {
+      setCollapsed((prev) => ({ ...prev, [exerciseId]: true }));
+    }
 
     // Epley 1RM: weight × (1 + reps / 30)
     const new1RM = w * (1 + r / 30);
@@ -374,7 +381,7 @@ export default function ActiveWorkout() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {(timerRunning || timerSeconds > 0) && (
         <View style={[styles.timerBanner, timerSeconds === 0 && styles.timerDone]}>
@@ -794,7 +801,7 @@ function ExerciseBody({
   );
 }
 
-function makeStyles(c: Colors) {
+function makeStyles(c: Colors, bottomInset: number = 0) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
@@ -824,7 +831,7 @@ function makeStyles(c: Colors) {
     durationText: { flex: 1, fontSize: 13, fontWeight: '600', color: c.muted },
     durationToggle: { padding: 2 },
     scroll: { flex: 1 },
-    scrollContent: { padding: 14, paddingBottom: 100 },
+    scrollContent: { padding: 14, paddingBottom: 14 },
     empty: { color: c.muted, textAlign: 'center', marginTop: 40, fontSize: 15 },
     exerciseCard: {
       backgroundColor: c.card,
@@ -914,13 +921,11 @@ function makeStyles(c: Colors) {
     addSetText: { color: c.accent, fontWeight: '600' },
     removeSetText: { color: c.danger, fontWeight: '600' },
     footer: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
       flexDirection: 'row',
       gap: 12,
-      padding: 14,
+      paddingTop: 14,
+      paddingHorizontal: 14,
+      paddingBottom: Math.max(bottomInset, 14),
       backgroundColor: c.card,
       borderTopWidth: 1,
       borderTopColor: c.borderLight,
