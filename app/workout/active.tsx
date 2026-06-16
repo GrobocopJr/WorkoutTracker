@@ -112,7 +112,6 @@ export default function ActiveWorkout() {
   const [sessionNote, setSessionNote] = useState('');
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const saveNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const noteFieldFocusedRef = useRef(false);
 
   const scrollToExercise = useCallback((idx: number) => {
     listRef.current?.scrollToIndex({
@@ -122,19 +121,28 @@ export default function ActiveWorkout() {
     });
   }, []);
 
+  const handleNoteChange = useCallback((text: string) => {
+    setSessionNote(text);
+    if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current);
+    if (sessionId) {
+      saveNoteTimerRef.current = setTimeout(() => saveSessionNote(db, sessionId, text), 500);
+    }
+  }, [db, sessionId]);
+
+  const noteIsEmpty = !sessionNote.trim();
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity onPress={() => setNoteModalVisible(true)} hitSlop={8} style={{ marginRight: 4 }}>
           <Ionicons
-            name={sessionNote.trim() ? 'document-text' : 'document-text-outline'}
+            name={noteIsEmpty ? 'document-text-outline' : 'document-text'}
             size={22}
-            color={sessionNote.trim() ? c.accent : c.text}
+            color={noteIsEmpty ? c.text : c.accent}
           />
         </TouchableOpacity>
       ),
     });
-  }, [navigation, sessionNote, c.accent, c.text]);
+  }, [navigation, noteIsEmpty, c.accent, c.text]);
 
   const handleInputFocus = useCallback((exerciseIdx: number) => {
     focusedExerciseIdxRef.current = exerciseIdx;
@@ -201,7 +209,7 @@ export default function ActiveWorkout() {
       const idx = focusedExerciseIdxRef.current;
       if (idx >= 0) {
         setTimeout(() => scrollToExercise(idx), 150);
-      } else if (noteFieldFocusedRef.current) {
+      } else {
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
       }
     });
@@ -566,37 +574,26 @@ export default function ActiveWorkout() {
               onInputFocus={() => handleInputFocus(index)}
             />
           )}
-          ListFooterComponent={
+          ListFooterComponent={useMemo(() => (
             <View style={styles.sessionNoteSection}>
               <Text style={styles.sessionNoteLabel}>Session Note</Text>
               <TextInput
                 style={styles.sessionNoteInput}
                 value={sessionNote}
-                onChangeText={(text) => {
-                  setSessionNote(text);
-                  if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current);
-                  if (sessionId) {
-                    saveNoteTimerRef.current = setTimeout(
-                      () => saveSessionNote(db, sessionId, text),
-                      500
-                    );
-                  }
-                }}
+                onChangeText={handleNoteChange}
                 onFocus={() => {
                   focusedExerciseIdxRef.current = -1;
-                  noteFieldFocusedRef.current = true;
                   if (keyboardVisibleRef.current) {
                     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
                   }
                 }}
-                onBlur={() => { noteFieldFocusedRef.current = false; }}
                 placeholder="Add a note about this workout…"
                 placeholderTextColor={c.placeholder}
                 multiline
                 returnKeyType="default"
               />
             </View>
-          }
+          ), [sessionNote, handleNoteChange, styles, c.placeholder])}
         />
       </GestureHandlerRootView>
 
@@ -634,16 +631,7 @@ export default function ActiveWorkout() {
             <TextInput
               style={[styles.modalInput, styles.modalNoteInput]}
               value={sessionNote}
-              onChangeText={(text) => {
-                setSessionNote(text);
-                if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current);
-                if (sessionId) {
-                  saveNoteTimerRef.current = setTimeout(
-                    () => saveSessionNote(db, sessionId, text),
-                    500
-                  );
-                }
-              }}
+              onChangeText={handleNoteChange}
               placeholder="Add a note about this workout…"
               placeholderTextColor={c.placeholder}
               autoFocus

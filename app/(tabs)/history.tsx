@@ -98,11 +98,9 @@ export default function HistoryTab() {
   const loadDay = useCallback(
     async (date: string) => {
       const sessions = await getSessionsForDate(db, date);
-      const details: SessionWithSets[] = [];
-      for (const s of sessions) {
-        const sets = await getSessionDetail(db, s.id);
-        details.push({ session: s, sets });
-      }
+      const details = await Promise.all(
+        sessions.map(async (s) => ({ session: s, sets: await getSessionDetail(db, s.id) }))
+      );
       setSessionDetails(details);
     },
     [db]

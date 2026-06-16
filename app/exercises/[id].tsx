@@ -38,6 +38,7 @@ export default function ExerciseDetail() {
   const [history, setHistory] = useState<ExerciseHistoryPoint[]>([]);
   const [prHistory, setPrHistory] = useState<PRHistoryPoint[]>([]);
   const [units, setUnits] = useState('lbs');
+  const reversedPRHistory = useMemo(() => [...prHistory].reverse(), [prHistory]);
   const [chartMetric, setChartMetric] = useState<ChartMetric>('weight');
   const [loading, setLoading] = useState(true);
   const [imgIndex, setImgIndex] = useState(0);
@@ -230,11 +231,11 @@ export default function ExerciseDetail() {
               </Text>
             </View>
             <View style={styles.prList}>
-              {[...prHistory].reverse().map((pr, i) => {
+              {reversedPRHistory.map((pr, i) => {
                 const isCurrent = i === 0;
                 return (
                   <View
-                    key={`${pr.date}-${i}`}
+                    key={`${pr.date}-${pr.weight}-${pr.reps}`}
                     style={[styles.prRow, i > 0 && styles.prRowBorder, isCurrent && styles.prRowCurrent]}
                   >
                     <Ionicons

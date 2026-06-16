@@ -71,34 +71,36 @@ export default function WorkoutSummary() {
   const [exercises, setExercises] = useState<ExerciseSummary[]>([]);
   const [prSetIds, setPrSetIds] = useState<Set<number>>(new Set());
   const [totalVolume, setTotalVolume] = useState(0);
+  const sid = parseInt(sessionId ?? '0', 10);
   const [durationSecs, setDurationSecs] = useState(parseInt(durationParam ?? '0', 10));
   const [sessionNote, setSessionNote] = useState('');
   const saveNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const canGoBack = router.canGoBack();
+  const canGoBack = useRef(router.canGoBack()).current;
 
   useEffect(() => {
     return () => { if (saveNoteTimerRef.current) clearTimeout(saveNoteTimerRef.current); };
   }, []);
 
   useEffect(() => {
-    if (!sessionId) return;
-    const sid = parseInt(sessionId, 10);
+    if (!sid) return;
 
     async function load() {
-      const unitRow = await db.getFirstAsync<{ value: string }>(
-        "SELECT value FROM settings WHERE key = 'units'"
-      );
+      const [unitRow, session] = await Promise.all([
+        db.getFirstAsync<{ value: string }>(
+          "SELECT value FROM settings WHERE key = 'units'"
+        ),
+        db.getFirstAsync<{
+          date: string;
+          routine_id: number | null;
+          notes: string | null;
+          started_at: string;
+          ended_at: string | null;
+        }>('SELECT date, routine_id, notes, started_at, ended_at FROM sessions WHERE id = ?', [sid]),
+      ]);
+
       const u = unitRow?.value ?? 'lbs';
       setUnits(u);
-
-      const session = await db.getFirstAsync<{
-        date: string;
-        routine_id: number | null;
-        notes: string | null;
-        started_at: string;
-        ended_at: string | null;
-      }>('SELECT date, routine_id, notes, started_at, ended_at FROM sessions WHERE id = ?', [sid]);
 
       if (!session) { setLoading(false); return; }
 
@@ -106,8 +108,7 @@ export default function WorkoutSummary() {
       setSessionNote(session.notes ?? '');
 
       // Compute duration from timestamps when not passed as a param (e.g. navigating from history).
-      const paramDuration = parseInt(durationParam ?? '0', 10);
-      if (paramDuration === 0 && session.started_at && session.ended_at) {
+      if (durationSecs === 0 && session.started_at && session.ended_at) {
         const start = new Date(session.started_at.replace(' ', 'T') + 'Z');
         const end = new Date(session.ended_at.replace(' ', 'T') + 'Z');
         setDurationSecs(Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000)));
@@ -191,7 +192,7 @@ export default function WorkoutSummary() {
     }
 
     load();
-  }, [sessionId, db]);
+  }, [sid, db]);
 
   const handleDelete = () => {
     Alert.alert(
@@ -225,7 +226,6 @@ export default function WorkoutSummary() {
 
   const prCount = prSetIds.size;
   const volumeLabel = totalVolume.toLocaleString();
-  const sid = parseInt(sessionId ?? '0', 10);
 
   return (
     <KeyboardAvoidingView
